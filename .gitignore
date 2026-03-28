@@ -1,0 +1,67 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+dist
+.next
+.turbo
+*.tsbuildinfo
+out
+build
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# Supabase
+supabase/.temp
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Testing
+coverage
+playwright-report
+test-results
+
+# Certificates (NUNCA commitear)
+*.p12
+*.pfx
+*.pem
+*.key
+*.crt
+*.cer
+
+# Secrets (NUNCA commitear)
+*secret*
+*credentials*
+*private*
+
+# Redis
+dump.rdb
+
+# Puppeteer
+.local-chromium
+
+# Generated
+packages/database/src/types/supabase.ts
+.vercel

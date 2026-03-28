@@ -1,0 +1,31 @@
+{
+  "name": "medicore",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "lint:fix": "turbo lint:fix",
+    "type-check": "turbo type-check",
+    "test": "turbo test",
+    "test:rls": "turbo test:rls",
+    "test:unit": "turbo test:unit",
+    "test:e2e": "turbo test:e2e",
+    "clean": "turbo clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\" --ignore-path .gitignore",
+    "db:generate-types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > packages/database/src/types/supabase.ts",
+    "db:push": "supabase db push",
+    "db:reset": "supabase db reset"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.4",
+    "prettier": "^3.4.2",
+    "@types/node": "^22.10.10"
+  }
+}

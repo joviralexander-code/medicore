@@ -1,0 +1,190 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   MediCore Design System — v2.0
+   Brand: #1E40AF (primary blue) · #0D9488 (teal accent)
+   Style: Modern medical SaaS — clean, trustworthy, high contrast
+   ──────────────────────────────────────────────────────────────────────────── */
+
+@layer base {
+  :root {
+    /* ── shadcn/ui core tokens ────────────────────────────────────────────── */
+    --background:            0 0% 100%;
+    --foreground:            222 47% 11%;       /* #0F172A */
+    --card:                  0 0% 100%;
+    --card-foreground:       222 47% 11%;
+    --popover:               0 0% 100%;
+    --popover-foreground:    222 47% 11%;
+
+    /* Primary = MediCore Blue #1E40AF → HSL(226, 71%, 40%) */
+    --primary:               226 71% 40%;
+    --primary-foreground:    0 0% 100%;
+
+    --secondary:             215 28% 96%;
+    --secondary-foreground:  222 47% 25%;
+    --muted:                 215 28% 96%;
+    --muted-foreground:      215 16% 47%;
+
+    /* Accent = light blue tint for hover states */
+    --accent:                213 100% 95%;
+    --accent-foreground:     226 71% 35%;
+
+    --destructive:           0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border:                214 32% 91%;
+    --input:                 214 32% 91%;
+    --ring:                  226 71% 40%;
+
+    /* 10px default radius — modern but not playful */
+    --radius:                0.625rem;
+
+    /* ── MediCore extended semantic tokens ───────────────────────────────── */
+    /* Teal #0D9488 → HSL(175, 84%, 32%) */
+    --teal:                  175 84% 32%;
+    --teal-foreground:       0 0% 100%;
+    --teal-light:            175 40% 94%;
+
+    --success:               142 72% 36%;
+    --success-foreground:    0 0% 100%;
+    --success-light:         142 76% 94%;
+
+    --warning:               38 92% 50%;
+    --warning-foreground:    0 0% 100%;
+    --warning-light:         38 100% 94%;
+
+    --info:                  199 89% 48%;
+    --info-foreground:       0 0% 100%;
+    --info-light:            199 100% 94%;
+
+    /* ── Sidebar tokens (dark navy) ──────────────────────────────────────── */
+    --sidebar-bg:            222 47% 11%;       /* #0F172A — deep navy */
+    --sidebar-fg:            213 31% 91%;       /* #DDE6F0 — light text */
+    --sidebar-muted:         215 20% 55%;       /* #7C92A8 — muted nav items */
+    --sidebar-active-bg:     226 71% 22%;       /* #0D1F4A — active bg */
+    --sidebar-active-fg:     0 0% 100%;
+    --sidebar-border:        222 40% 18%;       /* subtle divider */
+    --sidebar-hover-bg:      222 40% 16%;       /* hover state */
+
+    /* ── Surface & layout ────────────────────────────────────────────────── */
+    --surface:               215 28% 98%;       /* page background */
+    --surface-raised:        0 0% 100%;         /* cards */
+    --divider:               214 32% 91%;
+
+    /* ── Shadows ──────────────────────────────────────────────────────────── */
+    --shadow-card:           0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+    --shadow-hover:          0 4px 12px -2px rgb(0 0 0 / 0.10), 0 2px 6px -2px rgb(0 0 0 / 0.06);
+    --shadow-elevated:       0 10px 24px -4px rgb(0 0 0 / 0.12), 0 4px 8px -4px rgb(0 0 0 / 0.06);
+    --shadow-focus:          0 0 0 3px hsl(226 71% 40% / 0.18);
+  }
+
+  .dark {
+    --background:            222 47% 7%;
+    --foreground:            213 31% 91%;
+    --card:                  222 47% 9%;
+    --card-foreground:       213 31% 91%;
+    --popover:               222 47% 9%;
+    --popover-foreground:    213 31% 91%;
+
+    --primary:               217 91% 60%;
+    --primary-foreground:    222 47% 11%;
+
+    --secondary:             222 40% 16%;
+    --secondary-foreground:  213 31% 91%;
+    --muted:                 222 40% 16%;
+    --muted-foreground:      215 20% 55%;
+
+    --accent:                222 40% 18%;
+    --accent-foreground:     213 31% 91%;
+
+    --destructive:           0 63% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border:                222 40% 18%;
+    --input:                 222 40% 18%;
+    --ring:                  217 91% 60%;
+
+    --teal:                  175 60% 45%;
+    --teal-light:            175 40% 14%;
+    --success-light:         142 40% 14%;
+    --warning-light:         38 60% 14%;
+    --info-light:            199 60% 14%;
+
+    --sidebar-bg:            222 47% 5%;
+    --sidebar-border:        222 40% 12%;
+  }
+}
+
+@layer base {
+  /* ── Reset & base typography ─────────────────────────────────────────── */
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: hsl(var(--surface));
+    color: hsl(var(--foreground));
+    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+    line-height: 1.5;
+  }
+
+  /* ── Headings ─────────────────────────────────────────────────────────── */
+  h1 { @apply text-2xl font-bold tracking-tight; letter-spacing: -0.02em; }
+  h2 { @apply text-xl  font-semibold tracking-tight; }
+  h3 { @apply text-lg  font-semibold; }
+  h4 { @apply text-base font-semibold; }
+
+  /* ── Focus ring ───────────────────────────────────────────────────────── */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* ── Custom scrollbar (WebKit) ────────────────────────────────────────── */
+  ::-webkit-scrollbar               { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track         { background: transparent; }
+  ::-webkit-scrollbar-thumb         { background: hsl(var(--border)); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover   { background: hsl(var(--muted-foreground)); }
+
+  /* ── Selection ────────────────────────────────────────────────────────── */
+  ::selection {
+    background-color: hsl(var(--primary) / 0.15);
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer utilities {
+  /* ── Shadow utilities ─────────────────────────────────────────────────── */
+  .shadow-card     { box-shadow: var(--shadow-card); }
+  .shadow-hover    { box-shadow: var(--shadow-hover); }
+  .shadow-elevated { box-shadow: var(--shadow-elevated); }
+
+  /* ── Status badge helpers ─────────────────────────────────────────────── */
+  .badge-success { @apply bg-green-100  text-green-800  dark:bg-green-900/30 dark:text-green-400; }
+  .badge-warning { @apply bg-amber-100  text-amber-800  dark:bg-amber-900/30 dark:text-amber-400; }
+  .badge-error   { @apply bg-red-100    text-red-800    dark:bg-red-900/30   dark:text-red-400; }
+  .badge-info    { @apply bg-blue-100   text-blue-800   dark:bg-blue-900/30  dark:text-blue-400; }
+  .badge-teal    { @apply bg-teal-100   text-teal-800   dark:bg-teal-900/30  dark:text-teal-400; }
+  .badge-gray    { @apply bg-gray-100   text-gray-700   dark:bg-gray-800     dark:text-gray-300; }
+
+  /* ── Page layout ──────────────────────────────────────────────────────── */
+  .page-content {
+    @apply max-w-7xl mx-auto;
+  }
+
+  /* ── Gradient text ────────────────────────────────────────────────────── */
+  .text-gradient-brand {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--teal)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}

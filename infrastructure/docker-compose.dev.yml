@@ -1,0 +1,71 @@
+version: '3.9'
+
+services:
+  # -----------------------------------------------
+  # API Express
+  # -----------------------------------------------
+  api:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile.dev
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      REDIS_URL: redis://redis:6379
+    ports:
+      - '3001:3001'
+    volumes:
+      - ../apps/api/src:/app/src
+      - /app/node_modules
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # -----------------------------------------------
+  # Redis (BullMQ + caché)
+  # -----------------------------------------------
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # -----------------------------------------------
+  # Redis UI (desarrollo)
+  # -----------------------------------------------
+  redis-ui:
+    image: redis/redisinsight:latest
+    ports:
+      - '5540:5540'
+    depends_on:
+      - redis
+    profiles:
+      - debug
+
+volumes:
+  redis_data:
+
+# -----------------------------------------------
+# Notas de desarrollo local:
+#
+# Para subdominios locales, agregar a /etc/hosts:
+#   127.0.0.1 drdemo.localhost
+#   127.0.0.1 test.localhost
+#
+# Supabase local (opcional):
+#   cd .. && npx supabase start
+#   Luego actualizar NEXT_PUBLIC_SUPABASE_URL en .env
+#
+# Correr stack completo:
+#   docker compose -f infrastructure/docker-compose.dev.yml up
+# -----------------------------------------------

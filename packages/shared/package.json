@@ -1,0 +1,23 @@
+{
+  "name": "@medicore/shared",
+  "version": "0.0.1",
+  "private": true,
+  "exports": {
+    "./constants": "./src/constants/index.ts",
+    "./schemas": "./src/schemas/index.ts",
+    "./utils": "./src/utils/index.ts",
+    "./types": "./src/types/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@medicore/typescript-config": "workspace:*",
+    "@medicore/eslint-config": "workspace:*",
+    "typescript": "^5.7.3"
+  }
+}
