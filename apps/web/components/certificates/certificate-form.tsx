@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { X } from 'lucide-react';
+import { Cie10Autocomplete } from '@/components/shared/cie10-autocomplete';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -38,7 +39,8 @@ export function CertificateForm({
 
   // reposo
   const [days, setDays] = useState('1');
-  const [diagnosis, setDiagnosis] = useState('');
+  const [diagnosisCode, setDiagnosisCode] = useState('');
+  const [diagnosisDesc, setDiagnosisDesc] = useState('');
   const [fromDate, setFromDate] = useState(new Date().toISOString().split('T')[0]!);
   const [toDate, setToDate] = useState('');
 
@@ -47,7 +49,8 @@ export function CertificateForm({
   const [validUntilDate, setValidUntilDate] = useState('');
 
   // atencion
-  const [ateDiagnosis, setAteDiagnosis] = useState('');
+  const [ateDiagnosisCode, setAteDiagnosisCode] = useState('');
+  const [ateDiagnosisDesc, setAteDiagnosisDesc] = useState('');
   const [treatment, setTreatment] = useState('');
 
   // shared
@@ -63,13 +66,20 @@ export function CertificateForm({
 
   function buildContent(): Record<string, unknown> {
     if (certType === 'reposo') {
-      return { days: Number(days), diagnosis, from_date: fromDate, to_date: toDate, observations };
+      return {
+        days: Number(days),
+        diagnosis_code: diagnosisCode,
+        diagnosis: diagnosisDesc,
+        from_date: fromDate,
+        to_date: toDate,
+        observations,
+      };
     }
     if (certType === 'salud') {
       return { purpose, observations, valid_until_date: validUntilDate || null };
     }
     if (certType === 'atencion') {
-      return { diagnosis: ateDiagnosis, treatment, observations };
+      return { diagnosis_code: ateDiagnosisCode, diagnosis: ateDiagnosisDesc, treatment, observations };
     }
     return { title: customTitle, body: customBody };
   }
@@ -164,9 +174,13 @@ export function CertificateForm({
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className={labelClass}>Diagnóstico</Label>
-                <Input value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)}
-                  placeholder="Ej: Faringoamigdalitis aguda" className={inputClass} />
+                <Label className={labelClass}>Diagnóstico CIE-10</Label>
+                <Cie10Autocomplete
+                  value={diagnosisCode ? `${diagnosisCode} - ${diagnosisDesc}` : diagnosisDesc}
+                  onChange={(code, desc) => { setDiagnosisCode(code); setDiagnosisDesc(desc); }}
+                  inputClass={`${inputClass} w-full`}
+                  placeholder="Buscar por código (J06) o descripción..."
+                />
               </div>
             </>
           )}
@@ -196,9 +210,13 @@ export function CertificateForm({
           {certType === 'atencion' && (
             <>
               <div className="space-y-1.5">
-                <Label className={labelClass}>Diagnóstico</Label>
-                <Input value={ateDiagnosis} onChange={(e) => setAteDiagnosis(e.target.value)}
-                  placeholder="Diagnóstico de la consulta" className={inputClass} />
+                <Label className={labelClass}>Diagnóstico CIE-10</Label>
+                <Cie10Autocomplete
+                  value={ateDiagnosisCode ? `${ateDiagnosisCode} - ${ateDiagnosisDesc}` : ateDiagnosisDesc}
+                  onChange={(code, desc) => { setAteDiagnosisCode(code); setAteDiagnosisDesc(desc); }}
+                  inputClass={`${inputClass} w-full`}
+                  placeholder="Buscar por código (J06) o descripción..."
+                />
               </div>
               <div className="space-y-1.5">
                 <Label className={labelClass}>Tratamiento indicado</Label>
