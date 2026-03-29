@@ -391,10 +391,10 @@ async function buildCertificatePdf(cert: CertificateRow): Promise<Uint8Array> {
   const sigY = Math.min(y - 55, 155);
   const qrSize = 65;
 
-  // Signature line + doctor info (left side)
+  // ── Doctor info (left) ────────────────────────────────────────────────
   page.drawLine({
     start: { x: margin, y: sigY + 30 },
-    end:   { x: margin + 190, y: sigY + 30 },
+    end:   { x: margin + 160, y: sigY + 30 },
     thickness: 0.5, color: dark,
   });
   page.drawText(doctorFullName, { x: margin, y: sigY + 16, font: fontBold, size: 9, color: dark });
@@ -406,7 +406,55 @@ async function buildCertificatePdf(cert: CertificateRow): Promise<Uint8Array> {
     page.drawText(`REG. SENESCYT: ${doctor.senescyt_registration}`, { x: margin, y: sigY - 20, font: fontReg, size: 8, color: gray });
   }
 
-  // QR code (right side of signature block)
+  // ── Digital signature stamp (center) ──────────────────────────────────
+  const stampX = margin + 175;
+  const stampW = 120;
+  const stampH = 58;
+  const stampY = sigY - 22;
+  // Outer border
+  page.drawRectangle({ x: stampX, y: stampY, width: stampW, height: stampH,
+    borderColor: blue, borderWidth: 1, color: rgb(0.94, 0.97, 1) });
+  // Top accent bar
+  page.drawRectangle({ x: stampX, y: stampY + stampH - 12, width: stampW, height: 12, color: blue });
+  // Header text
+  const headerText = 'FIRMADO DIGITALMENTE';
+  const headerW = fontBold.widthOfTextAtSize(headerText, 6);
+  page.drawText(headerText, {
+    x: stampX + (stampW - headerW) / 2, y: stampY + stampH - 9,
+    font: fontBold, size: 6, color: rgb(1, 1, 1),
+  });
+  // Doctor name in stamp
+  const stampName = doctorFullName.length > 22 ? doctorFullName.slice(0, 22) + '.' : doctorFullName;
+  const stampNameW = fontBold.widthOfTextAtSize(stampName, 7);
+  page.drawText(stampName, {
+    x: stampX + (stampW - stampNameW) / 2, y: stampY + stampH - 24,
+    font: fontBold, size: 7, color: dark,
+  });
+  // Date
+  const signDate = new Date().toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const signTime = new Date().toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
+  const dateText = `Fecha: ${signDate} ${signTime}`;
+  const dateW = fontReg.widthOfTextAtSize(dateText, 6.5);
+  page.drawText(dateText, {
+    x: stampX + (stampW - dateW) / 2, y: stampY + stampH - 35,
+    font: fontReg, size: 6.5, color: gray,
+  });
+  // PlexoMed brand
+  const brandText = 'PlexoMed — Donde todo converge.';
+  const brandW = fontReg.widthOfTextAtSize(brandText, 5.5);
+  page.drawText(brandText, {
+    x: stampX + (stampW - brandW) / 2, y: stampY + 6,
+    font: fontReg, size: 5.5, color: rgb(0.4, 0.5, 0.7),
+  });
+  // Verification code
+  const codeInStamp = `Cod: ${cert.verification_code}`;
+  const codeInStampW = fontBold.widthOfTextAtSize(codeInStamp, 6);
+  page.drawText(codeInStamp, {
+    x: stampX + (stampW - codeInStampW) / 2, y: stampY + 15,
+    font: fontBold, size: 6, color: dark,
+  });
+
+  // ── QR code (right) ───────────────────────────────────────────────────
   try {
     const rootDomain = process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'plexomed.com';
     const verificationUrl = `https://${rootDomain}/verificar/${cert.verification_code}`;
@@ -415,16 +463,10 @@ async function buildCertificatePdf(cert: CertificateRow): Promise<Uint8Array> {
     const qrX = width - margin - qrSize;
     const qrY = sigY - 20;
     page.drawImage(qrImage, { x: qrX, y: qrY, width: qrSize, height: qrSize });
-    // Label below QR
-    const qrLabel = 'Verificar documento';
+    const qrLabel = 'Escanear para verificar';
     const qrLabelW = fontReg.widthOfTextAtSize(qrLabel, 6);
-    page.drawText(qrLabel, { x: qrX + (qrSize - qrLabelW) / 2, y: qrY - 8, font: fontReg, size: 6, color: gray });
-    // Verification code text
-    const codeText = cert.verification_code;
-    const codeW = fontBold.widthOfTextAtSize(codeText, 7);
-    page.drawText(codeText, { x: qrX + (qrSize - codeW) / 2, y: qrY - 16, font: fontBold, size: 7, color: dark });
+    page.drawText(qrLabel, { x: qrX + (qrSize - qrLabelW) / 2, y: qrY - 9, font: fontReg, size: 6, color: gray });
   } catch {
-    // QR generation failed — fallback to text
     const verifyText = `Cod. verificacion: ${cert.verification_code}`;
     const vw = fontReg.widthOfTextAtSize(verifyText, 7);
     page.drawText(verifyText, { x: width - margin - vw, y: sigY - 20, font: fontReg, size: 7, color: gray });
