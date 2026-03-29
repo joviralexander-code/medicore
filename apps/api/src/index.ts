@@ -68,7 +68,7 @@ app.use(errorHandler);
 // -------------------------------------------------------
 const server = app.listen(env.PORT, () => {
   if (env.NODE_ENV !== 'test') {
-    console.warn(`MediCore API running on port ${env.PORT} [${env.NODE_ENV}]`);
+    console.warn(`PlexoMed API running on port ${env.PORT} [${env.NODE_ENV}]`);
   }
 });
 

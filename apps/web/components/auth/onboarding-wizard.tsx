@@ -286,7 +286,7 @@ export function OnboardingWizard({ userEmail: _userEmail }: OnboardingWizardProp
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="tenantSlug" className="text-gray-700">Tu URL en MediCore <span className="text-red-400">*</span></Label>
+              <Label htmlFor="tenantSlug" className="text-gray-700">Tu URL en PlexoMed <span className="text-red-400">*</span></Label>
               <div className="flex items-center rounded-md border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#1E40AF] focus-within:ring-offset-1">
                 <span className="px-3 py-2.5 bg-gray-50 text-gray-400 text-sm border-r border-gray-200 whitespace-nowrap">{process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'plexomed.com'}/</span>
                 <input
@@ -343,7 +343,7 @@ export function OnboardingWizard({ userEmail: _userEmail }: OnboardingWizardProp
             <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-teal-50 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
               <span className="text-4xl">🎉</span>
             </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">¡Bienvenido a MediCore!</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">¡Bienvenido a PlexoMed!</h2>
             <p className="text-gray-500 mb-6">
               Tu consultorio <strong className="text-gray-700">{tenant.name}</strong> está listo en<br/>
               <a href={`https://${createdSlug}.${process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'plexomed.com'}`} target="_blank" rel="noopener noreferrer"

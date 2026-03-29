@@ -67,9 +67,9 @@ export default async function AcceptInvitationPage({ searchParams }: Props) {
         <div className="text-center mb-8">
           <div className="inline-flex items-center space-x-2 mb-2">
             <div className="w-8 h-8 rounded-lg bg-[#1E40AF] flex items-center justify-center">
-              <span className="text-white font-bold text-sm">M</span>
+              <span className="text-white font-bold text-sm">P</span>
             </div>
-            <span className="text-2xl font-bold text-[#1E40AF]">MediCore</span>
+            <span className="text-2xl font-bold text-[#1E40AF]">PlexoMed</span>
           </div>
           <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
             <p className="text-sm font-semibold text-[#1E40AF]">

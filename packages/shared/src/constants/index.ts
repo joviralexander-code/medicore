@@ -2,7 +2,7 @@ export * from './plans';
 export * from './roles';
 export * from './sri';
 
-export const APP_NAME = 'MediCore';
+export const APP_NAME = 'PlexoMed';
 export const APP_DOMAIN = 'plexomed.com';
 export const SUPPORT_EMAIL = 'soporte@plexomed.com';
 

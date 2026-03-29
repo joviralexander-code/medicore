@@ -4,7 +4,7 @@ import { RegisterForm } from '@/components/auth/register-form';
 
 export const metadata: Metadata = {
   title: 'Crear cuenta',
-  description: 'Crea tu cuenta MediCore y empieza gratis',
+  description: 'Crea tu cuenta PlexoMed y empieza gratis',
 };
 
 export default function RegisterPage() {

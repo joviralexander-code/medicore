@@ -9,18 +9,18 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3 w-fit">
           <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
-            <span className="text-white font-bold text-base">M</span>
+            <span className="text-white font-bold text-base">P</span>
           </div>
-          <span className="text-white font-bold text-xl tracking-tight">MediCore</span>
+          <span className="text-white font-bold text-xl tracking-tight">PlexoMed</span>
         </Link>
 
         {/* Tagline */}
         <blockquote className="space-y-3">
           <p className="text-blue-100 text-2xl font-semibold leading-snug">
-            "Simplifica tu consultorio,<br/>enfócate en tus pacientes."
+            "Donde todo converge."
           </p>
           <footer className="text-blue-200/70 text-sm">
-            Facturación SRI · Recetas digitales · Agenda
+            Consultas · Facturación SRI · IA · Pacientes
           </footer>
         </blockquote>
 
@@ -45,9 +45,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Mobile logo */}
         <Link href="/" className="lg:hidden flex items-center gap-2 mb-10">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-white font-bold text-sm">M</span>
+            <span className="text-white font-bold text-sm">P</span>
           </div>
-          <span className="font-bold text-xl text-primary">MediCore</span>
+          <span className="font-bold text-xl text-primary">PlexoMed</span>
         </Link>
 
         <div className="w-full max-w-sm">

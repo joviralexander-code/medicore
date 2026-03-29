@@ -328,7 +328,7 @@ social_Router.post(
     const platformNote = isLinkedIn
       ? 'Tono profesional y formal. Sin emojis excesivos. Máximo 200 palabras.'
       : isShortForm
-      ? 'Usa emojis estratégicamente. Incluye 5-7 hashtags relevantes al final (#salud #medicina #Ecuador #MediCore). Máximo 200 palabras.'
+      ? 'Usa emojis estratégicamente. Incluye 5-7 hashtags relevantes al final (#salud #medicina #Ecuador #PlexoMed). Máximo 200 palabras.'
       : 'Tono amigable y accesible. Puedes usar algunos emojis. Máximo 250 palabras.';
 
     const promptContent = CONTENT_TYPE_LABELS[contentType] ?? contentType;

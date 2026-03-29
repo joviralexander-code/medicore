@@ -67,7 +67,7 @@ export default async function PrivacySettingsPage({ params }: Props) {
         </div>
         <div className="p-6 space-y-4">
           <p className="text-sm text-gray-700">
-            MediCore Ecuador cumple con la{' '}
+            PlexoMed cumple con la{' '}
             <strong>Ley Orgánica de Protección de Datos Personales del Ecuador</strong>{' '}
             (LOPDP, vigente desde mayo 2023). Como responsable del tratamiento, tu consultorio
             tiene las siguientes obligaciones:
@@ -87,7 +87,7 @@ export default async function PrivacySettingsPage({ params }: Props) {
             ))}
           </ul>
           <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-            <strong>Audit trail:</strong> MediCore registra automáticamente todos los accesos a
+            <strong>Audit trail:</strong> PlexoMed registra automáticamente todos los accesos a
             datos de pacientes (consultas, prescripciones, facturas) en el log de auditoría,
             incluido el usuario, IP y timestamp.
           </div>

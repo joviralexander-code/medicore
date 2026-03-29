@@ -7,11 +7,11 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: {
-    default: 'MediCore — Software Médico para Ecuador',
-    template: '%s | MediCore',
+    default: 'PlexoMed — Donde todo converge.',
+    template: '%s | PlexoMed',
   },
   description:
-    'Plataforma médica integral para Ecuador: historia clínica, facturación SRI, agenda, recetas y más.',
+    'La plataforma médica inteligente que conecta todo tu ecosistema clínico: historia clínica, facturación SRI, agenda, recetas y IA.',
   metadataBase: new URL(
     process.env['NEXT_PUBLIC_APP_URL'] ?? 'https://plexomed.com'
   ),

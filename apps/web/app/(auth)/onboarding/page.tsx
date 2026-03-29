@@ -37,9 +37,9 @@ export default async function OnboardingPage() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center space-x-2 mb-2">
             <div className="w-8 h-8 rounded-lg bg-[#1E40AF] flex items-center justify-center">
-              <span className="text-white font-bold text-sm">M</span>
+              <span className="text-white font-bold text-sm">P</span>
             </div>
-            <span className="text-2xl font-bold text-[#1E40AF]">MediCore</span>
+            <span className="text-2xl font-bold text-[#1E40AF]">PlexoMed</span>
           </div>
           <p className="text-muted-foreground">
             Configuremos tu consultorio en 3 pasos

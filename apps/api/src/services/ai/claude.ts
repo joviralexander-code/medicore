@@ -1,5 +1,5 @@
 /**
- * Cliente Claude AI para MediCore
+ * Cliente Claude AI para PlexoMed
  * Modelo: claude-sonnet-4-20250514
  * Todos los casos de uso médicos pasan por este servicio
  */

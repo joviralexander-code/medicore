@@ -118,7 +118,7 @@ function html(data: ReportData): string {
     </div>
     <div class="header-right">
       Generado el ${data.generatedAt.toLocaleDateString('es-EC', { day:'2-digit', month:'long', year:'numeric' })}
-      <br/>MediCore Ecuador
+      <br/>PlexoMed
     </div>
   </div>
 

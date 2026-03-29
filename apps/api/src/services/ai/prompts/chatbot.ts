@@ -1,5 +1,5 @@
 /**
- * Prompt para chatbot WhatsApp de MediCore
+ * Prompt para chatbot WhatsApp de PlexoMed
  * Asistente virtual del consultorio médico
  */
 
@@ -12,7 +12,7 @@ export interface ChatbotContext {
 
 export function buildChatbotSystemPrompt(ctx: ChatbotContext): string {
   return `Eres el asistente virtual de ${ctx.tenantName}, un consultorio médico de ${ctx.speciality} en Ecuador.
-Tu nombre es "Asistente MediCore".
+Tu nombre es "Asistente PlexoMed".
 
 Tu rol es atender consultas por WhatsApp de los pacientes. Puedes:
 - Responder preguntas frecuentes sobre el consultorio (horarios, ubicación, servicios)

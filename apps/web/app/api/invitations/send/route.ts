@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
                 </div>
               </td>
               <td style="vertical-align:middle;">
-                <span style="font-size:22px;font-weight:700;color:#1E40AF;">MediCore</span>
+                <span style="font-size:22px;font-weight:700;color:#1E40AF;">PlexoMed</span>
               </td>
             </tr>
           </table>
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
             Has sido invitado a ${tenantName}
           </h2>
           <p style="margin:0 0 24px;font-size:15px;color:#6b7280;line-height:1.6;">
-            Alguien de <strong>${tenantName}</strong> te invitó a unirte a su consultorio en MediCore
+            Alguien de <strong>${tenantName}</strong> te invitó a unirte a su consultorio en PlexoMed
             con el rol de <strong>${roleLabel}</strong>.
           </p>
           <!-- Invite box -->
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
     body: JSON.stringify({
       from: FROM_EMAIL,
       to: [email],
-      subject: `Invitación a ${tenantName} en MediCore`,
+      subject: `Invitación a ${tenantName} en PlexoMed`,
       html,
     }),
   });

@@ -6,9 +6,9 @@ import {
 } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'MediCore — Software Médico para Ecuador',
+  title: 'PlexoMed — Donde todo converge.',
   description:
-    'Historia clínica electrónica, facturación SRI, agenda y más. La plataforma médica integral para Ecuador.',
+    'La plataforma médica inteligente donde todos los datos clínicos convergen: historia clínica, facturación SRI, IA, agenda y más.',
 };
 
 const features = [
@@ -94,7 +94,7 @@ export default function MarketingPage() {
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
               <Stethoscope size={16} className="text-white" />
             </div>
-            <span className="text-xl font-bold text-foreground">MediCore</span>
+            <span className="text-xl font-bold text-foreground">PlexoMed</span>
           </div>
           <div className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
             <a href="#features" className="hover:text-foreground transition-colors">Funcionalidades</a>
@@ -280,8 +280,8 @@ export default function MarketingPage() {
             <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
               <Stethoscope size={12} className="text-white" />
             </div>
-            <span className="font-semibold text-foreground">MediCore</span>
-            <span>© 2024 Ecuador. Todos los derechos reservados.</span>
+            <span className="font-semibold text-foreground">PlexoMed</span>
+            <span>© 2025. Todos los derechos reservados.</span>
           </div>
           <div className="flex gap-6">
             <Link href="/terms" className="hover:text-foreground transition-colors">Términos</Link>

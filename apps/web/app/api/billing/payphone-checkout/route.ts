@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     tip: 0,
     currency: 'USD',
     storeId,
-    reference: `MediCore ${tier} - ${tenantId}`,
+    reference: `PlexoMed ${tier} - ${tenantId}`,
     clientTransactionId,
     responseUrl: `${appUrl}/api/webhooks/payphone`,
     cancellationUrl: `${appUrl}/app/${slug}/settings/billing?cancelled=1`,

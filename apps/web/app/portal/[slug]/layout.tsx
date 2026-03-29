@@ -27,10 +27,10 @@ export default async function PortalLayout({ children, params }: Props) {
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 rounded-lg bg-[#1E40AF] flex items-center justify-center">
-              <span className="text-white font-bold text-sm">M</span>
+              <span className="text-white font-bold text-sm">P</span>
             </div>
             <div>
-              <p className="font-semibold text-sm text-[#1E40AF]">MediCore</p>
+              <p className="font-semibold text-sm text-[#1E40AF]">PlexoMed</p>
               <p className="text-xs text-muted-foreground">{tenant.name}</p>
             </div>
           </div>
@@ -62,7 +62,7 @@ export default async function PortalLayout({ children, params }: Props) {
       {/* Footer */}
       <footer className="border-t mt-16 py-6">
         <p className="text-center text-xs text-muted-foreground">
-          Portal del Paciente · {tenant.name} · Powered by MediCore Ecuador
+          Portal del Paciente · {tenant.name} · Powered by PlexoMed
         </p>
       </footer>
     </div>

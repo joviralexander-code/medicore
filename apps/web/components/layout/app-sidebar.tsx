@@ -105,9 +105,9 @@ export function AppSidebar({ slug, tenantName, planTier, userRole }: AppSidebarP
       <div className="px-4 pt-5 pb-4 border-b border-sidebar-border">
         <div className="flex items-center gap-2.5 mb-3">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-sm flex-shrink-0">
-            <span className="text-white font-bold text-sm">M</span>
+            <span className="text-white font-bold text-sm">P</span>
           </div>
-          <span className="font-semibold text-sm text-sidebar-fg">MediCore</span>
+          <span className="font-semibold text-sm text-sidebar-fg">PlexoMed</span>
         </div>
 
         <div className="flex items-center justify-between gap-2 rounded-lg bg-sidebar-active-bg px-3 py-2">
