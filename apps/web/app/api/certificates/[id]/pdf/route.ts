@@ -522,9 +522,9 @@ export async function GET(
           p12Buf = Buffer.from(raw);
         } else {
           const str = String(raw);
-          if (str.startsWith('\\x') || str.startsWith('\x')) {
-            // Supabase bytea → hex string, content is JSON.stringify(Buffer)
-            const hex = str.startsWith('\\x') ? str.slice(2) : str.slice(1);
+          if (str.startsWith('\\x')) {
+            // Supabase bytea → \xHEX string, content is JSON.stringify(Buffer)
+            const hex = str.slice(2);
             const jsonStr = Buffer.from(hex, 'hex').toString('utf8');
             const parsed = JSON.parse(jsonStr) as { type?: string; data?: number[] };
             p12Buf = parsed.type === 'Buffer' && Array.isArray(parsed.data)
