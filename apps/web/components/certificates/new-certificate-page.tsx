@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Search, Loader2 } from 'lucide-react';
+import { Cie10Autocomplete } from '@/components/shared/cie10-autocomplete';
 
 type CertType = 'reposo' | 'salud' | 'atencion' | 'personalizado';
 
@@ -53,16 +54,25 @@ export function NewCertificatePage({ tenantId, doctorId, slug, prePatient }: Pro
 
   // reposo
   const [days, setDays] = useState('1');
-  const [diagnosis, setDiagnosis] = useState('');
   const [fromDate, setFromDate] = useState(new Date().toISOString().split('T')[0]!);
   const [toDate, setToDate] = useState('');
+  const [diagnosisCode, setDiagnosisCode] = useState('');
+  const [diagnosisDesc, setDiagnosisDesc] = useState('');
+  const [resumenClinico, setResumenClinico] = useState('');
+  const [actividadLaboral, setActividadLaboral] = useState('');
+  const [empresa, setEmpresa] = useState('');
+  const [contingencia, setContingencia] = useState('ENFERMEDAD GENERAL');
 
   // salud
   const [purpose, setPurpose] = useState('trabajo');
   const [validUntilDate, setValidUntilDate] = useState('');
 
   // atencion
-  const [ateDiagnosis, setAteDiagnosis] = useState('');
+  const [procedimiento, setProcedimiento] = useState('');
+  const [horaDesde, setHoraDesde] = useState('');
+  const [horaHasta, setHoraHasta] = useState('');
+  const [ateDiagnosisCode, setAteDiagnosisCode] = useState('');
+  const [ateDiagnosisDesc, setAteDiagnosisDesc] = useState('');
   const [treatment, setTreatment] = useState('');
 
   // shared
@@ -118,11 +128,52 @@ export function NewCertificatePage({ tenantId, doctorId, slug, prePatient }: Pro
     setPatientQuery('');
   }
 
+  function handleFromDateChange(val: string) {
+    setFromDate(val);
+    if (val && days) {
+      const d = new Date(val);
+      d.setDate(d.getDate() + Number(days) - 1);
+      setToDate(d.toISOString().split('T')[0]!);
+    }
+  }
+
+  function handleDaysChange(val: string) {
+    setDays(val);
+    if (fromDate && val) {
+      const d = new Date(fromDate);
+      d.setDate(d.getDate() + Number(val) - 1);
+      setToDate(d.toISOString().split('T')[0]!);
+    }
+  }
+
   // ── Build content ─────────────────────────────────────────────────────────
   function buildContent(): Record<string, unknown> {
-    if (certType === 'reposo') return { days: Number(days), diagnosis, from_date: fromDate, to_date: toDate, observations };
+    if (certType === 'reposo') {
+      return {
+        days: Number(days),
+        from_date: fromDate,
+        to_date: toDate,
+        diagnosis_code: diagnosisCode,
+        diagnosis: diagnosisDesc,
+        resumen_clinico: resumenClinico,
+        actividad_laboral: actividadLaboral,
+        empresa,
+        contingencia,
+        observations,
+      };
+    }
     if (certType === 'salud') return { purpose, observations, valid_until_date: validUntilDate || null };
-    if (certType === 'atencion') return { diagnosis: ateDiagnosis, treatment, observations };
+    if (certType === 'atencion') {
+      return {
+        procedimiento,
+        hora_desde: horaDesde,
+        hora_hasta: horaHasta,
+        diagnosis_code: ateDiagnosisCode,
+        diagnosis: ateDiagnosisDesc,
+        treatment,
+        observations,
+      };
+    }
     return { title: customTitle, body: customBody };
   }
 
@@ -260,20 +311,12 @@ export function NewCertificatePage({ tenantId, doctorId, slug, prePatient }: Pro
                 <div className="space-y-1.5">
                   <Label className={labelClass}>Días de reposo</Label>
                   <Input type="number" min={1} max={365} value={days}
-                    onChange={(e) => setDays(e.target.value)} className={inputClass} required />
+                    onChange={(e) => handleDaysChange(e.target.value)} className={inputClass} required />
                 </div>
                 <div className="space-y-1.5">
                   <Label className={labelClass}>Desde</Label>
                   <Input type="date" value={fromDate}
-                    onChange={(e) => {
-                      setFromDate(e.target.value);
-                      if (e.target.value && days) {
-                        const d = new Date(e.target.value);
-                        d.setDate(d.getDate() + Number(days) - 1);
-                        setToDate(d.toISOString().split('T')[0]!);
-                      }
-                    }}
-                    className={inputClass} required />
+                    onChange={(e) => handleFromDateChange(e.target.value)} className={inputClass} required />
                 </div>
                 <div className="space-y-1.5">
                   <Label className={labelClass}>Hasta</Label>
@@ -282,9 +325,39 @@ export function NewCertificatePage({ tenantId, doctorId, slug, prePatient }: Pro
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className={labelClass}>Diagnóstico</Label>
-                <Input value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)}
-                  placeholder="Ej: Faringoamigdalitis aguda" className={inputClass} />
+                <Label className={labelClass}>Diagnóstico CIE-10 <span className="text-red-400">*</span></Label>
+                <Cie10Autocomplete
+                  value={diagnosisCode ? `${diagnosisCode} - ${diagnosisDesc}` : diagnosisDesc}
+                  onChange={(code, desc) => { setDiagnosisCode(code); setDiagnosisDesc(desc); }}
+                  inputClass={`${inputClass} w-full`}
+                  placeholder="Buscar por código (J06) o descripción..."
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className={labelClass}>Resumen clínico (síntomas)</Label>
+                <Input value={resumenClinico} onChange={(e) => setResumenClinico(e.target.value)}
+                  placeholder="Ej: TOS, ALZA TÉRMICA, MALESTAR GENERAL" className={inputClass} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className={labelClass}>Actividad laboral</Label>
+                  <Input value={actividadLaboral} onChange={(e) => setActividadLaboral(e.target.value)}
+                    placeholder="Ej: Docente, Contador..." className={inputClass} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className={labelClass}>Institución / Empresa</Label>
+                  <Input value={empresa} onChange={(e) => setEmpresa(e.target.value)}
+                    placeholder="Nombre de la empresa" className={inputClass} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className={labelClass}>Tipo de contingencia</Label>
+                <select value={contingencia} onChange={(e) => setContingencia(e.target.value)} className={selectClass}>
+                  <option value="ENFERMEDAD GENERAL">Enfermedad general</option>
+                  <option value="ACCIDENTE DE TRABAJO">Accidente de trabajo</option>
+                  <option value="MATERNIDAD">Maternidad</option>
+                  <option value="ACCIDENTE DE TRÁNSITO">Accidente de tránsito</option>
+                </select>
               </div>
             </>
           )}
@@ -314,12 +387,31 @@ export function NewCertificatePage({ tenantId, doctorId, slug, prePatient }: Pro
           {certType === 'atencion' && (
             <>
               <div className="space-y-1.5">
-                <Label className={labelClass}>Diagnóstico</Label>
-                <Input value={ateDiagnosis} onChange={(e) => setAteDiagnosis(e.target.value)}
-                  placeholder="Diagnóstico de la consulta" className={inputClass} />
+                <Label className={labelClass}>Procedimiento / Motivo de atención <span className="text-red-400">*</span></Label>
+                <Input value={procedimiento} onChange={(e) => setProcedimiento(e.target.value)}
+                  placeholder="Ej: CONSULTA MÉDICA GENERAL, EXAMEN ECOGRÁFICO..." className={inputClass} required />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className={labelClass}>Hora de inicio</Label>
+                  <Input type="time" value={horaDesde} onChange={(e) => setHoraDesde(e.target.value)} className={inputClass} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className={labelClass}>Hora de fin</Label>
+                  <Input type="time" value={horaHasta} onChange={(e) => setHoraHasta(e.target.value)} className={inputClass} />
+                </div>
               </div>
               <div className="space-y-1.5">
-                <Label className={labelClass}>Tratamiento indicado</Label>
+                <Label className={labelClass}>Diagnóstico CIE-10 (opcional)</Label>
+                <Cie10Autocomplete
+                  value={ateDiagnosisCode ? `${ateDiagnosisCode} - ${ateDiagnosisDesc}` : ateDiagnosisDesc}
+                  onChange={(code, desc) => { setAteDiagnosisCode(code); setAteDiagnosisDesc(desc); }}
+                  inputClass={`${inputClass} w-full`}
+                  placeholder="Buscar por código (J06) o descripción..."
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className={labelClass}>Tratamiento indicado (opcional)</Label>
                 <Input value={treatment} onChange={(e) => setTreatment(e.target.value)}
                   placeholder="Medicación, indicaciones, etc." className={inputClass} />
               </div>
