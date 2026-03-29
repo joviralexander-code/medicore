@@ -27,16 +27,22 @@ export function LoginForm() {
     if (loading) return;
     setLoading(true);
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (error) {
-      toast({ title: 'Error al iniciar sesión', description: error.message, variant: 'destructive' });
+      if (error) {
+        toast({ title: 'Error al iniciar sesión', description: error.message, variant: 'destructive' });
+        setLoading(false);
+        return;
+      }
+
+      window.location.href = redirect;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error de conexión';
+      toast({ title: 'Error al iniciar sesión', description: msg, variant: 'destructive' });
       setLoading(false);
-      return;
     }
-
-    window.location.href = redirect;
   }
 
   return (
