@@ -81,26 +81,20 @@ export function SriConfigForm({ slug: _slug, tenantId, current }: SriConfigFormP
 
     try {
       const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setError('Sesión expirada. Recarga la página.'); setLoading(false); return; }
 
-      const { error: updateError } = await supabase
-        .from('tenants')
-        .update({
-          sri_ruc: ruc,
-          sri_razon_social: razonSocial,
-          sri_nombre_comercial: nombreComercial || null,
-          sri_direccion: direccion || null,
-          sri_telefono: telefono || null,
-          sri_email: email || null,
-          sri_serie: serie,
-          sri_ambiente: ambiente,
-        })
-        .eq('id', tenantId);
+      const res = await fetch('/api/sri/config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ ruc, razonSocial, nombreComercial: nombreComercial || undefined, direccion: direccion || undefined, telefono: telefono || undefined, email: email || undefined, serie, ambiente }),
+      });
 
-      if (updateError) {
-        setError(updateError.message ?? 'No se pudo guardar la configuración.');
-        setLoading(false);
-        return;
-      }
+      const body = await res.json().catch(() => ({})) as { message?: string };
+      if (!res.ok) { setError(body.message ?? 'No se pudo guardar la configuración.'); setLoading(false); return; }
 
       setSuccess('Configuración SRI guardada correctamente.');
     } catch (err) {

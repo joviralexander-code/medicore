@@ -51,7 +51,7 @@ const inputClass =
 // Component
 // ---------------------------------------------------------------------------
 
-export function SriCertUpload({ slug: _slug, tenantId: _tenantId, hasCert, certExpiry }: SriCertUploadProps) {
+export function SriCertUpload({ slug: _slug, tenantId: _tenantId, hasCert, certExpiry }: SriCertUploadProps) { // eslint-disable-line @typescript-eslint/no-unused-vars
   const [showReplaceForm, setShowReplaceForm] = useState(!hasCert);
   const [p12Base64, setP12Base64] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -108,8 +108,7 @@ export function SriCertUpload({ slug: _slug, tenantId: _tenantId, hasCert, certE
         return;
       }
 
-      const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
-      const res = await fetch(`${apiBase}/api/v1/sri/certificado`, {
+      const res = await fetch('/api/sri/cert', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
