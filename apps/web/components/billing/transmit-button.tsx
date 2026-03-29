@@ -42,7 +42,7 @@ export function TransmitButton({ documentId, slug: _slug }: TransmitButtonProps)
       }
 
       const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
-      const res = await fetch(`${apiBase}/api/v1/sri/factura/${documentId}/transmitir`, {
+      const res = await fetch(`${apiBase}/api/v1/billing/factura/${documentId}/transmitir`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
