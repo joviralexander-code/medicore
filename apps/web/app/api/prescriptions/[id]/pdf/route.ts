@@ -2,8 +2,11 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdmin } from '@supabase/supabase-js';
 import { PDFDocument, rgb, StandardFonts, PDFFont } from 'pdf-lib';
-import forge from 'node-forge';
 import crypto from 'crypto';
+import QRCode from 'qrcode';
+import signpdf from '@signpdf/signpdf';
+import { P12Signer } from '@signpdf/signer-p12';
+import { plainAddPlaceholder } from '@signpdf/placeholder-plain';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -295,8 +298,10 @@ async function buildPrescriptionPdf(rx: PrescriptionRow): Promise<Uint8Array> {
 
   // ── Signature block ───────────────────────────────────────────────────
   const sigY = Math.min(y - 30, 170);
+  const qrSize = 65;
 
-  page.drawLine({ start: { x: margin, y: sigY + 28 }, end: { x: margin + 185, y: sigY + 28 }, thickness: 0.5, color: dark });
+  // ── Doctor info (left) ────────────────────────────────────────────────
+  page.drawLine({ start: { x: margin, y: sigY + 28 }, end: { x: margin + 160, y: sigY + 28 }, thickness: 0.5, color: dark });
   page.drawText(doctorFullName, { x: margin, y: sigY + 14, font: fontBold, size: 9, color: dark });
   if (doctor?.speciality) {
     page.drawText(doctor.speciality.toUpperCase(), { x: margin, y: sigY + 2, font: fontReg, size: 8, color: gray });
@@ -306,61 +311,106 @@ async function buildPrescriptionPdf(rx: PrescriptionRow): Promise<Uint8Array> {
   }
   page.drawText(tenantName, { x: margin, y: sigY - 22, font: fontReg, size: 8, color: gray });
 
-  // Verification code bottom-right
-  const verifyLabel = 'Codigo de verificacion:';
-  const verifyCode  = rx.verification_code;
-  const vlW = fontReg.widthOfTextAtSize(verifyLabel, 7);
-  const vcW = fontBold.widthOfTextAtSize(verifyCode, 9);
-  const rightX = width - margin - Math.max(vlW, vcW);
-  page.drawText(verifyLabel, { x: rightX, y: sigY + 14, font: fontReg, size: 7, color: gray });
-  page.drawText(verifyCode,  { x: rightX, y: sigY + 2,  font: fontBold, size: 9, color: dark });
-  page.drawText('Firmado electronicamente', { x: rightX, y: sigY - 10, font: fontReg, size: 7, color: gray });
+  // ── Digital signature stamp (center) ──────────────────────────────────
+  const stampX = margin + 175;
+  const stampW = 120;
+  const stampH = 58;
+  const stampY = sigY - 22;
+  // Outer border
+  page.drawRectangle({ x: stampX, y: stampY, width: stampW, height: stampH,
+    borderColor: blue, borderWidth: 1, color: rgb(0.94, 0.97, 1) });
+  // Top accent bar
+  page.drawRectangle({ x: stampX, y: stampY + stampH - 12, width: stampW, height: 12, color: blue });
+  // Header text
+  const headerText = 'FIRMADO DIGITALMENTE';
+  const headerW = fontBold.widthOfTextAtSize(headerText, 6);
+  page.drawText(headerText, {
+    x: stampX + (stampW - headerW) / 2, y: stampY + stampH - 9,
+    font: fontBold, size: 6, color: rgb(1, 1, 1),
+  });
+  // Doctor name in stamp
+  const stampName = doctorFullName.length > 22 ? doctorFullName.slice(0, 22) + '.' : doctorFullName;
+  const stampNameW = fontBold.widthOfTextAtSize(stampName, 7);
+  page.drawText(stampName, {
+    x: stampX + (stampW - stampNameW) / 2, y: stampY + stampH - 24,
+    font: fontBold, size: 7, color: dark,
+  });
+  // Date
+  const signDate = new Date().toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const signTime = new Date().toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
+  const dateText = `Fecha: ${signDate} ${signTime}`;
+  const dateW = fontReg.widthOfTextAtSize(dateText, 6.5);
+  page.drawText(dateText, {
+    x: stampX + (stampW - dateW) / 2, y: stampY + stampH - 35,
+    font: fontReg, size: 6.5, color: gray,
+  });
+  // Verification code
+  const codeInStamp = `Cod: ${rx.verification_code}`;
+  const codeInStampW = fontBold.widthOfTextAtSize(codeInStamp, 6);
+  page.drawText(codeInStamp, {
+    x: stampX + (stampW - codeInStampW) / 2, y: stampY + 15,
+    font: fontBold, size: 6, color: dark,
+  });
+  // PlexoMed brand
+  const brandText = 'PlexoMed — Donde todo converge.';
+  const brandW = fontReg.widthOfTextAtSize(brandText, 5.5);
+  page.drawText(brandText, {
+    x: stampX + (stampW - brandW) / 2, y: stampY + 6,
+    font: fontReg, size: 5.5, color: rgb(0.4, 0.5, 0.7),
+  });
+
+  // ── QR code (right) ───────────────────────────────────────────────────
+  try {
+    const rootDomain = process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'plexomed.com';
+    const verificationUrl = `https://${rootDomain}/verificar/${rx.verification_code}`;
+    const qrBuffer = await QRCode.toBuffer(verificationUrl, { width: qrSize * 2, margin: 1, type: 'png' });
+    const qrImage = await pdfDoc.embedPng(qrBuffer);
+    const qrX = width - margin - qrSize;
+    const qrY = sigY - 20;
+    page.drawImage(qrImage, { x: qrX, y: qrY, width: qrSize, height: qrSize });
+    const qrLabel = 'Escanear para verificar';
+    const qrLabelW = fontReg.widthOfTextAtSize(qrLabel, 6);
+    page.drawText(qrLabel, { x: qrX + (qrSize - qrLabelW) / 2, y: qrY - 9, font: fontReg, size: 6, color: gray });
+  } catch {
+    const verifyText = `Cod. verificacion: ${rx.verification_code}`;
+    const vw = fontReg.widthOfTextAtSize(verifyText, 7);
+    page.drawText(verifyText, { x: width - margin - vw, y: sigY - 20, font: fontReg, size: 7, color: gray });
+  }
 
   // ── Footer bar ────────────────────────────────────────────────────────
   page.drawRectangle({ x: 0, y: 0, width, height: 22, color: blue });
   const footerText = `${tenant?.name ?? ''}${tenant?.sri_ruc ? `  |  RUC: ${tenant.sri_ruc}` : ''}${tenant?.sri_telefono ? `  |  Tel: ${tenant.sri_telefono}` : ''}`;
   page.drawText(footerText, { x: margin, y: 7, font: fontReg, size: 7, color: rgb(1, 1, 1) });
 
-  return pdfDoc.save();
+  // useObjectStreams: false required for @signpdf/placeholder-plain xref parsing
+  return pdfDoc.save({ useObjectStreams: false });
 }
 
 // ---------------------------------------------------------------------------
-// Electronic signature
+// Electronic signature (proper embedded PDF PKCS#7)
 // ---------------------------------------------------------------------------
 
-async function signPdf(pdfBytes: Uint8Array, p12Buffer: Buffer, p12Password: string): Promise<Uint8Array> {
+async function signPdfEmbedded(
+  pdfBytes: Uint8Array,
+  p12Buffer: Buffer,
+  p12Password: string,
+  signerName: string,
+): Promise<{ signed: Uint8Array; success: boolean }> {
   try {
-    const p12Der  = forge.util.createBuffer(p12Buffer.toString('binary'));
-    const p12Asn1 = forge.asn1.fromDer(p12Der);
-    const p12     = forge.pkcs12.pkcs12FromAsn1(p12Asn1, p12Password);
-
-    const certBags = p12.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag] ?? [];
-    const keyBags  = p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag })[forge.pki.oids.pkcs8ShroudedKeyBag] ?? [];
-    if (!certBags[0]?.cert || !keyBags[0]?.key) return pdfBytes;
-
-    const p7 = forge.pkcs7.createSignedData();
-    p7.content = forge.util.createBuffer(Buffer.from(pdfBytes).toString('binary'));
-    p7.addCertificate(certBags[0].cert!);
-    p7.addSigner({
-      key: keyBags[0].key!,
-      certificate: certBags[0].cert!,
-      digestAlgorithm: forge.pki.oids.sha256,
-      authenticatedAttributes: [
-        { type: forge.pki.oids.contentType,  value: forge.pki.oids.data },
-        { type: forge.pki.oids.messageDigest },
-        { type: forge.pki.oids.signingTime,  value: new Date().toISOString() },
-      ],
+    const pdfWithPlaceholder = plainAddPlaceholder({
+      pdfBuffer: Buffer.from(pdfBytes),
+      reason: 'Receta Medica Digital',
+      contactInfo: '',
+      name: signerName,
+      location: 'Ecuador',
     });
-    p7.sign({ detached: true });
 
-    const sigB64  = Buffer.from(forge.asn1.toDer(p7.toAsn1()).getBytes(), 'binary').toString('base64');
-    const comment = new TextEncoder().encode(`\n%% PKCS7-SIGNATURE: ${sigB64}\n`);
-    const merged  = new Uint8Array(pdfBytes.length + comment.length);
-    merged.set(pdfBytes);
-    merged.set(comment, pdfBytes.length);
-    return merged;
-  } catch {
-    return pdfBytes;
+    const signer = new P12Signer(p12Buffer, { passphrase: p12Password });
+    const signedBuffer = await signpdf.sign(pdfWithPlaceholder, signer);
+    return { signed: new Uint8Array(signedBuffer), success: true };
+  } catch (err) {
+    console.error('[signPdfEmbedded] Error:', err instanceof Error ? err.message : String(err));
+    return { signed: pdfBytes, success: false };
   }
 }
 
@@ -411,10 +461,41 @@ export async function GET(
 
     if (tenantFull?.sri_cert_p12 && tenantFull.sri_cert_password) {
       try {
-        const p12Buf = Buffer.from(tenantFull.sri_cert_p12 as string, 'base64');
+        // P12 stored formats: Uint8Array | \xHEX (Supabase bytea) | JSON.stringify(Buffer) | base64
+        const raw = tenantFull.sri_cert_p12 as unknown;
+        let p12Buf: Buffer;
+        if (raw instanceof Uint8Array) {
+          p12Buf = Buffer.from(raw);
+        } else {
+          const str = String(raw);
+          if (str.startsWith('\\x')) {
+            // Supabase bytea → \xHEX string, content is JSON.stringify(Buffer)
+            const hex = str.slice(2);
+            const jsonStr = Buffer.from(hex, 'hex').toString('utf8');
+            const parsed = JSON.parse(jsonStr) as { type?: string; data?: number[] };
+            p12Buf = parsed.type === 'Buffer' && Array.isArray(parsed.data)
+              ? Buffer.from(parsed.data)
+              : Buffer.from(jsonStr, 'base64');
+          } else if (str.startsWith('{')) {
+            const parsed = JSON.parse(str) as { type?: string; data?: number[] };
+            p12Buf = parsed.type === 'Buffer' && Array.isArray(parsed.data)
+              ? Buffer.from(parsed.data)
+              : Buffer.from(str, 'base64');
+          } else {
+            p12Buf = Buffer.from(str, 'base64');
+          }
+        }
+        console.warn('[rx/pdf] p12 size:', p12Buf.length, 'bytes, first2:', p12Buf[0]?.toString(16), p12Buf[1]?.toString(16));
         const plainPassword = decryptPassword(tenantFull.sri_cert_password as string);
-        pdfBytes = await signPdf(pdfBytes, p12Buf, plainPassword);
-      } catch { /* unsigned */ }
+        const doctorName = rxRow.doctor
+          ? `${rxRow.doctor.first_name} ${rxRow.doctor.last_name}`
+          : 'Medico';
+        const result = await signPdfEmbedded(pdfBytes, p12Buf, plainPassword, doctorName);
+        pdfBytes = result.signed;
+        console.warn('[rx/pdf] signature result:', result.success ? 'signed' : 'failed');
+      } catch (err) {
+        console.error('[rx/pdf] outer sign error:', err instanceof Error ? err.message : String(err));
+      }
     }
   }
 
