@@ -41,9 +41,9 @@ export default async function VerificarCertificadoPage({ params }: Props) {
     personalizado: 'Certificado personalizado',
   };
 
-  const patient = cert.patient as { first_name: string; last_name: string; cedula?: string } | null;
-  const doctor = cert.doctor as { first_name: string; last_name: string; speciality?: string; senescyt_registration?: string } | null;
-  const tenant = cert.tenant as { name: string; sri_ruc?: string } | null;
+  const patient = cert.patient as unknown as { first_name: string; last_name: string; cedula?: string } | null;
+  const doctor = cert.doctor as unknown as { first_name: string; last_name: string; speciality?: string; senescyt_registration?: string } | null;
+  const tenant = cert.tenant as unknown as { name: string; sri_ruc?: string } | null;
 
   const issuedAt = new Date(cert.issued_at as string).toLocaleDateString('es-EC', {
     day: '2-digit', month: 'long', year: 'numeric',
