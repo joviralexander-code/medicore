@@ -296,10 +296,11 @@ export default async function PrescriptionDetailPage({ params }: Props) {
                   prescriptionId={rx.id}
                 />
               )}
-              <Button variant="outline" disabled>
-                Descargar PDF
-                <span className="ml-2 text-xs text-muted-foreground">(Próximamente)</span>
-              </Button>
+              <a href={`/api/prescriptions/${rx.id}/pdf`} target="_blank" rel="noopener noreferrer">
+                <Button variant="outline">
+                  Descargar PDF
+                </Button>
+              </a>
               <SendByEmailButton
                 type="prescription"
                 id={rx.id}
