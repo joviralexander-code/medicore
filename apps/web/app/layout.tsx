@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   description:
     'Plataforma médica integral para Ecuador: historia clínica, facturación SRI, agenda, recetas y más.',
   metadataBase: new URL(
-    process.env['NEXT_PUBLIC_APP_URL'] ?? 'https://medicore.ec'
+    process.env['NEXT_PUBLIC_APP_URL'] ?? 'https://plexomed.com'
   ),
 };
 

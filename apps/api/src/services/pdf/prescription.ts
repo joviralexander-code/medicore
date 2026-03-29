@@ -198,7 +198,7 @@ function html(data: PrescriptionPdfInput): string {
       <div class="verify-box">
         <div>Código de verificación pública:</div>
         <div class="verify-code">${data.verificationCode}</div>
-        <div style="margin-top:2px">Verifica en: medicore.ec/portal/verify</div>
+        <div style="margin-top:2px">Verifica en: plexomed.com/portal/verify</div>
       </div>
     </div>
   </div>

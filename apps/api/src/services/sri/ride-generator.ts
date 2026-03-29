@@ -238,7 +238,7 @@ function html(data: RideInput): string {
   <!-- FOOTER -->
   <div class="footer-info">
     Documento electrónico autorizado por el SRI · ${data.ambiente === 1 ? 'Ambiente de pruebas' : 'Ambiente de producción'} ·
-    Generado por MediCore Ecuador · medicore.ec
+    Generado por PlexoMed · plexomed.com
   </div>
 
 </div>

@@ -408,7 +408,7 @@ async function buildCertificatePdf(cert: CertificateRow): Promise<Uint8Array> {
 
   // QR code (right side of signature block)
   try {
-    const rootDomain = process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'medicore.jovir.cloud';
+    const rootDomain = process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'plexomed.com';
     const verificationUrl = `https://${rootDomain}/verificar/${cert.verification_code}`;
     const qrBuffer = await QRCode.toBuffer(verificationUrl, { width: qrSize * 2, margin: 1, type: 'png' });
     const qrImage = await pdfDoc.embedPng(qrBuffer);

@@ -178,7 +178,7 @@ export default async function PrivacySettingsPage({ params }: Props) {
             legal.
           </p>
           <a
-            href="mailto:privacidad@medicore.ec?subject=Solicitud eliminación de datos"
+            href="mailto:privacidad@plexomed.com?subject=Solicitud eliminación de datos"
             className="inline-block text-sm text-red-600 hover:underline"
           >
             Solicitar eliminación de datos →

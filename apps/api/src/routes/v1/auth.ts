@@ -135,7 +135,7 @@ authRouter.post(
       res.status(201).json({
         tenantId: tenant.id,
         slug: tenant.slug,
-        subdomain: `${tenant.slug}.medicore.ec`,
+        subdomain: `${tenant.slug}.${env.NEXT_PUBLIC_ROOT_DOMAIN}`,
       });
     } catch (err) {
       next(err);

@@ -101,8 +101,8 @@ export async function POST(request: Request) {
   }
 
   const RESEND_API_KEY = process.env['RESEND_API_KEY'];
-  const FROM_EMAIL = process.env['RESEND_FROM'] ?? 'noreply@medicore.ec';
-  const APP_URL = process.env['NEXT_PUBLIC_APP_URL'] ?? 'https://medicore.ec';
+  const FROM_EMAIL = process.env['RESEND_FROM'] ?? 'noreply@plexomed.com';
+  const APP_URL = process.env['NEXT_PUBLIC_APP_URL'] ?? 'https://plexomed.com';
 
   if (!RESEND_API_KEY) {
     return NextResponse.json({ error: 'Servicio de email no configurado. Configure RESEND_API_KEY.' }, { status: 503 });

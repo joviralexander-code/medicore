@@ -161,7 +161,7 @@ function html(data: ReportData): string {
   ` : ''}
 
   <div class="footer">
-    Reporte generado por MediCore Ecuador · medicore.ec · Solo para uso interno del consultorio
+    Reporte generado por PlexoMed · plexomed.com · Solo para uso interno del consultorio
   </div>
 
 </div>

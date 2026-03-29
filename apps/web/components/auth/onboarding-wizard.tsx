@@ -288,7 +288,7 @@ export function OnboardingWizard({ userEmail: _userEmail }: OnboardingWizardProp
             <div className="space-y-1.5">
               <Label htmlFor="tenantSlug" className="text-gray-700">Tu URL en MediCore <span className="text-red-400">*</span></Label>
               <div className="flex items-center rounded-md border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#1E40AF] focus-within:ring-offset-1">
-                <span className="px-3 py-2.5 bg-gray-50 text-gray-400 text-sm border-r border-gray-200 whitespace-nowrap">{process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'medicore.jovir.cloud'}/</span>
+                <span className="px-3 py-2.5 bg-gray-50 text-gray-400 text-sm border-r border-gray-200 whitespace-nowrap">{process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'plexomed.com'}/</span>
                 <input
                   id="tenantSlug"
                   value={tenant.slug}
@@ -303,7 +303,7 @@ export function OnboardingWizard({ userEmail: _userEmail }: OnboardingWizardProp
               {checkingSlug && <p className="text-xs text-gray-400 flex items-center space-x-1"><span className="animate-spin inline-block">⟳</span><span>Verificando...</span></p>}
               {slugAvailable === true && (
                 <p className="text-xs text-[#0D9488] flex items-center space-x-1">
-                  <span>✓</span><span>Disponible — tu URL será <strong>{tenant.slug}.{process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'medicore.jovir.cloud'}</strong></span>
+                  <span>✓</span><span>Disponible — tu URL será <strong>{tenant.slug}.{process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'plexomed.com'}</strong></span>
                 </p>
               )}
               {slugAvailable === false && (
@@ -346,9 +346,9 @@ export function OnboardingWizard({ userEmail: _userEmail }: OnboardingWizardProp
             <h2 className="text-2xl font-bold text-gray-800 mb-2">¡Bienvenido a MediCore!</h2>
             <p className="text-gray-500 mb-6">
               Tu consultorio <strong className="text-gray-700">{tenant.name}</strong> está listo en<br/>
-              <a href={`https://${createdSlug}.${process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'medicore.jovir.cloud'}`} target="_blank" rel="noopener noreferrer"
+              <a href={`https://${createdSlug}.${process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'plexomed.com'}`} target="_blank" rel="noopener noreferrer"
                 className="text-[#1E40AF] font-medium hover:underline">
-                {createdSlug}.{process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'medicore.jovir.cloud'}
+                {createdSlug}.{process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'plexomed.com'}
               </a>
             </p>
 

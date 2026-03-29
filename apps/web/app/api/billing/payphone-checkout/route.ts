@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
   const amountCents = Math.round(priceUsd * 100);
   const clientTransactionId = `${tenantId}:${tier}:${Date.now()}`;
-  const appUrl = process.env['NEXT_PUBLIC_APP_URL'] ?? 'https://medicore.ec';
+  const appUrl = process.env['NEXT_PUBLIC_APP_URL'] ?? 'https://plexomed.com';
 
   const payload = {
     amount: amountCents,

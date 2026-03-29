@@ -59,7 +59,7 @@ const envSchema = z.object({
   P12_MASTER_KEY: z.string().min(32),
 
   // App
-  NEXT_PUBLIC_ROOT_DOMAIN: z.string().default('medicore.ec'),
+  NEXT_PUBLIC_ROOT_DOMAIN: z.string().default('plexomed.com'),
   API_CORS_ORIGINS: z.string().default('http://localhost:3000'),
 });
 

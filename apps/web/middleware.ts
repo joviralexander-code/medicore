@@ -11,7 +11,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
-const ROOT_DOMAIN = process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'medicore.ec';
+const ROOT_DOMAIN = process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'plexomed.com';
 
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') ?? '';
@@ -29,7 +29,7 @@ export async function middleware(request: NextRequest) {
 
   if (!isRootDomain) {
     if (hostname.endsWith(`.${ROOT_DOMAIN}`)) {
-      // Subdominio: slug.medicore.ec
+      // Subdominio: slug.plexomed.com
       tenantSlug = hostname.replace(`.${ROOT_DOMAIN}`, '');
     } else if (hostname.endsWith('.localhost:3000') || hostname.endsWith('.localhost')) {
       // Desarrollo local: slug.localhost:3000
@@ -70,7 +70,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // -------------------------------------------------------
-  // 3. Rutas del tenant app (slug.medicore.ec/...)
+  // 3. Rutas del tenant app (slug.plexomed.com/...)
   // -------------------------------------------------------
   if (tenantSlug) {
     // Auth paths se sirven directamente (sin rewrite) para evitar redirect loops

@@ -205,7 +205,7 @@ export default async function BillingSettingsPage({ params }: Props) {
 
                 {plan.tier === 'enterprise' ? (
                   <a
-                    href="mailto:ventas@medicore.ec"
+                    href="mailto:ventas@plexomed.com"
                     className="block text-center text-sm font-medium py-2 px-4 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
                   >
                     Contactar ventas
