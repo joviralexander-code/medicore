@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdmin } from '@supabase/supabase-js';
-import { PDFDocument, rgb, StandardFonts, PDFFont } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, PDFFont, PDFPage } from 'pdf-lib';
 import forge from 'node-forge';
 
 // ---------------------------------------------------------------------------
@@ -22,6 +22,9 @@ interface CertificateRow {
     last_name: string;
     cedula: string | null;
     birth_date: string | null;
+    address: string | null;
+    phone: string | null;
+    city: string | null;
   } | null;
   doctor: {
     first_name: string;
@@ -31,42 +34,67 @@ interface CertificateRow {
     cedula: string | null;
   } | null;
   tenant: {
+    id?: string;
     name: string;
     sri_ruc: string | null;
+    sri_direccion: string | null;
+    sri_telefono: string | null;
     settings: Record<string, unknown> | null;
   } | null;
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Spanish helpers
 // ---------------------------------------------------------------------------
 
-function formatDate(iso: string): string {
+const ONES = ['', 'UNO', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE',
+  'DIEZ', 'ONCE', 'DOCE', 'TRECE', 'CATORCE', 'QUINCE', 'DIECISEIS', 'DIECISIETE', 'DIECIOCHO', 'DIECINUEVE',
+  'VEINTE', 'VEINTIUN', 'VEINTIDOS', 'VEINTITRES', 'VEINTICUATRO', 'VEINTICINCO', 'VEINTISEIS', 'VEINTISIETE', 'VEINTIOCHO', 'VEINTINUEVE'];
+const TENS = ['', '', 'VEINTE', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA'];
+const MONTHS_ES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+
+function numToWords(n: number): string {
+  if (n < 30) return ONES[n] ?? String(n);
+  if (n < 100) {
+    const t = Math.floor(n / 10);
+    const o = n % 10;
+    return o === 0 ? (TENS[t] ?? String(n)) : `${TENS[t]} Y ${ONES[o]}`;
+  }
+  return String(n);
+}
+
+function yearToWords(y: number): string {
+  if (y >= 2000 && y < 3000) {
+    const rem = y - 2000;
+    return rem === 0 ? 'DOS MIL' : `DOS MIL ${numToWords(rem)}`;
+  }
+  return String(y);
+}
+
+/** "2024-11-14" → "CATORCE DE NOVIEMBRE DEL DOS MIL VEINTICUATRO" */
+function dateToWords(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (!y || !m || !d) return dateStr;
+  return `${numToWords(d)} DE ${MONTHS_ES[m - 1] ?? ''} DEL ${yearToWords(y)}`;
+}
+
+/** "2024-11-14" → "14/11/2024" */
+function formatDateShort(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+/** "2024-11-14" → "Quito, 14 de noviembre del 2024" (header date) */
+function formatDateHeader(iso: string, city?: string | null): string {
   const d = new Date(iso);
-  const months = ['enero','febrero','marzo','abril','mayo','junio',
-    'julio','agosto','septiembre','octubre','noviembre','diciembre'];
-  return `${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;
+  const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const cityName = city ?? 'Ecuador';
+  return `${cityName}, ${d.getDate()} de ${months[d.getMonth()]} del ${d.getFullYear()}`;
 }
 
-function age(birthDate: string): number {
-  const birth = new Date(birthDate);
-  const now = new Date();
-  let age = now.getFullYear() - birth.getFullYear();
-  if (now < new Date(now.getFullYear(), birth.getMonth(), birth.getDate())) age--;
-  return age;
-}
-
-function drawText(
-  page: ReturnType<PDFDocument['addPage']>,
-  text: string,
-  x: number,
-  y: number,
-  font: PDFFont,
-  size: number,
-  color = rgb(0.1, 0.1, 0.1),
-) {
-  page.drawText(text, { x, y, font, size, color });
-}
+// ---------------------------------------------------------------------------
+// PDF drawing helpers
+// ---------------------------------------------------------------------------
 
 function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
   const words = text.split(' ');
@@ -82,11 +110,48 @@ function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): 
     }
   }
   if (current) lines.push(current);
-  return lines;
+  return lines.length ? lines : [''];
+}
+
+interface DrawCtx {
+  page: PDFPage;
+  fontReg: PDFFont;
+  fontBold: PDFFont;
+  margin: number;
+  contentWidth: number;
+  dark: ReturnType<typeof rgb>;
+  gray: ReturnType<typeof rgb>;
+}
+
+function drawWrapped(ctx: DrawCtx, text: string, x: number, y: number, size: number, bold = false): number {
+  const font = bold ? ctx.fontBold : ctx.fontReg;
+  const lines = wrapText(text, font, size, ctx.contentWidth - (x - ctx.margin));
+  for (const line of lines) {
+    ctx.page.drawText(line, { x, y, font, size, color: ctx.dark });
+    y -= size + 4;
+  }
+  return y;
+}
+
+/** Draw "LABEL: value" where label is bold and value is regular, with wrapping */
+function drawLabelValue(ctx: DrawCtx, label: string, value: string, x: number, y: number, size = 10): number {
+  if (!value) return y;
+  const labelWidth = ctx.fontBold.widthOfTextAtSize(label, size);
+  ctx.page.drawText(label, { x, y, font: ctx.fontBold, size, color: ctx.dark });
+  // wrap the value
+  const maxValWidth = ctx.contentWidth - (x - ctx.margin) - labelWidth;
+  const lines = wrapText(value, ctx.fontReg, size, maxValWidth);
+  ctx.page.drawText(lines[0] ?? '', { x: x + labelWidth, y, font: ctx.fontReg, size, color: ctx.dark });
+  y -= size + 5;
+  for (let i = 1; i < lines.length; i++) {
+    ctx.page.drawText(lines[i]!, { x: x + labelWidth, y, font: ctx.fontReg, size, color: ctx.dark });
+    y -= size + 5;
+  }
+  return y;
 }
 
 // ---------------------------------------------------------------------------
-// PDF Generation
+// PDF Builder
 // ---------------------------------------------------------------------------
 
 async function buildCertificatePdf(cert: CertificateRow): Promise<Uint8Array> {
@@ -94,217 +159,311 @@ async function buildCertificatePdf(cert: CertificateRow): Promise<Uint8Array> {
   const page = pdfDoc.addPage([595, 842]); // A4
   const { width, height } = page.getSize();
 
-  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontBold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const fontReg  = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
   const margin = 56;
   const contentWidth = width - margin * 2;
+  const dark  = rgb(0.08, 0.08, 0.08);
+  const gray  = rgb(0.45, 0.45, 0.45);
+  const blue  = rgb(0.07, 0.25, 0.68);
 
-  // ── Header bar ──────────────────────────────────────────────────────────
-  page.drawRectangle({ x: 0, y: height - 80, width, height: 80, color: rgb(0.12, 0.25, 0.69) });
-  drawText(page, cert.tenant?.name ?? 'Consultorio Médico', margin, height - 35, fontBold, 16, rgb(1,1,1));
-  if (cert.tenant?.sri_ruc) {
-    drawText(page, `RUC: ${cert.tenant.sri_ruc}`, margin, height - 55, fontRegular, 10, rgb(0.8,0.9,1));
+  const ctx: DrawCtx = { page, fontReg, fontBold, margin, contentWidth, dark, gray };
+
+  const tenant    = cert.tenant;
+  const doctor    = cert.doctor;
+  const patient   = cert.patient;
+  const tenantName = tenant?.name ?? 'Consultorio Medico';
+  const doctorFullName = doctor ? `${doctor.first_name} ${doctor.last_name}`.toUpperCase() : 'MEDICO';
+  const patientFullName = patient ? `${patient.first_name} ${patient.last_name}`.toUpperCase() : 'PACIENTE';
+  const patientLastFirst = patient ? `${patient.last_name} ${patient.first_name}`.toUpperCase() : 'PACIENTE';
+
+  // ── Header: date left, clinic info right ───────────────────────────────
+  let y = height - 50;
+  const headerDate = formatDateHeader(cert.issued_at, patient?.city);
+  page.drawText(headerDate, { x: margin, y, font: fontReg, size: 10, color: dark });
+
+  // Clinic block top-right
+  const clinicLines = [
+    tenantName.toUpperCase(),
+    ...(tenant?.sri_ruc ? [`RUC: ${tenant.sri_ruc}`] : []),
+    ...(tenant?.sri_direccion ? [tenant.sri_direccion] : []),
+    ...(tenant?.sri_telefono ? [`Tel: ${tenant.sri_telefono}`] : []),
+  ];
+  let clinicY = y;
+  for (const cl of clinicLines) {
+    const cw = fontReg.widthOfTextAtSize(cl, 8);
+    page.drawText(cl, { x: width - margin - cw, y: clinicY, font: cl === clinicLines[0] ? fontBold : fontReg, size: cl === clinicLines[0] ? 9 : 8, color: dark });
+    clinicY -= 11;
   }
 
-  // ── Certificate title ────────────────────────────────────────────────────
-  const titles: Record<string, string> = {
-    reposo: 'CERTIFICADO DE REPOSO MÉDICO',
-    salud: 'CERTIFICADO DE SALUD',
-    atencion: 'CERTIFICADO DE ATENCIÓN MÉDICA',
-    personalizado: String(cert.content.title ?? 'CERTIFICADO MÉDICO'),
-  };
-  const title = titles[cert.certificate_type] ?? 'CERTIFICADO MÉDICO';
-
-  const titleWidth = fontBold.widthOfTextAtSize(title, 14);
-  drawText(page, title, (width - titleWidth) / 2, height - 115, fontBold, 14, rgb(0.12, 0.25, 0.69));
-
-  // ── Cert number + date ───────────────────────────────────────────────────
-  let y = height - 145;
-  const certNum = cert.certificate_number ?? `CERT-${cert.id.substring(0, 8).toUpperCase()}`;
-  drawText(page, `N°: ${certNum}`, margin, y, fontBold, 9, rgb(0.4,0.4,0.4));
-  const dateStr = `Fecha: ${formatDate(cert.issued_at)}`;
-  drawText(page, dateStr, width - margin - fontRegular.widthOfTextAtSize(dateStr, 9), y, fontRegular, 9, rgb(0.4,0.4,0.4));
-
-  // ── Separator ────────────────────────────────────────────────────────────
-  y -= 12;
-  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 0.5, color: rgb(0.7,0.7,0.7) });
+  // ── Separator line ─────────────────────────────────────────────────────
   y -= 20;
+  page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 0.8, color: blue });
+  y -= 22;
 
-  // ── Doctor block ─────────────────────────────────────────────────────────
-  const doctorName = cert.doctor
-    ? `Dr./Dra. ${cert.doctor.first_name} ${cert.doctor.last_name}`
-    : 'Médico';
-  drawText(page, 'El/La suscrito/a:', margin, y, fontRegular, 10);
-  y -= 16;
-  drawText(page, doctorName, margin, y, fontBold, 11);
-  y -= 14;
-  if (cert.doctor?.speciality) {
-    drawText(page, cert.doctor.speciality, margin, y, fontRegular, 10, rgb(0.3,0.3,0.3));
-    y -= 14;
-  }
-  if (cert.doctor?.senescyt_registration) {
-    drawText(page, `Reg. SENESCYT: ${cert.doctor.senescyt_registration}`, margin, y, fontRegular, 9, rgb(0.45,0.45,0.45));
-    y -= 20;
-  }
+  // ── Title (centered, underlined) ───────────────────────────────────────
+  const titles: Record<string, string> = {
+    reposo:       'CERTIFICADO MEDICO',
+    salud:        'CERTIFICADO DE SALUD',
+    atencion:     'CERTIFICADO DE ASISTENCIA',
+    personalizado: String(cert.content.title ?? 'CERTIFICADO MEDICO'),
+  };
+  const title = titles[cert.certificate_type] ?? 'CERTIFICADO MEDICO';
+  const titleSize = 14;
+  const titleW = fontBold.widthOfTextAtSize(title, titleSize);
+  const titleX = (width - titleW) / 2;
+  page.drawText(title, { x: titleX, y, font: fontBold, size: titleSize, color: dark });
+  // Underline
+  page.drawLine({
+    start: { x: titleX, y: y - 2 },
+    end:   { x: titleX + titleW, y: y - 2 },
+    thickness: 1, color: dark,
+  });
+  y -= 30;
 
-  // ── Patient block ────────────────────────────────────────────────────────
-  const patientName = cert.patient
-    ? `${cert.patient.first_name} ${cert.patient.last_name}`
-    : 'Paciente';
-  const patientAge = cert.patient?.birth_date ? `, ${age(cert.patient.birth_date)} años` : '';
-  const patientCedula = cert.patient?.cedula ? `, C.I.: ${cert.patient.cedula}` : '';
-
-  // Certificate body based on type
-  const bodyLines: string[] = [];
+  // ── Body by certificate type ───────────────────────────────────────────
 
   if (cert.certificate_type === 'reposo') {
-    const c = cert.content as { days?: number; diagnosis?: string; from_date?: string; to_date?: string; observations?: string };
-    bodyLines.push(`CERTIFICA que el/la paciente:`);
-    bodyLines.push('');
-    bodyLines.push(`${patientName}${patientCedula}${patientAge}`);
-    bodyLines.push('');
-    bodyLines.push(`requiere REPOSO MÉDICO por ${c.days ?? '___'} día(s), comprendido desde el`);
-    if (c.from_date && c.to_date) {
-      bodyLines.push(`${formatDate(c.from_date)} hasta el ${formatDate(c.to_date)}.`);
+    const c = cert.content as {
+      days?: number; from_date?: string; to_date?: string;
+      diagnosis_code?: string; diagnosis?: string;
+      resumen_clinico?: string; actividad_laboral?: string;
+      empresa?: string; contingencia?: string; observations?: string;
+    };
+
+    // Opening paragraph
+    const addressStr = patient?.address ? ` y domiciliado/a en: ${patient.address.toUpperCase()}.` : '.';
+    const openPara = `Por medio de la presente certifico haber atendido al Pcte. ${patientFullName}` +
+      (patient?.cedula ? ` con CI# ${patient.cedula}, numero de historia clinica ${patient.cedula}` : '') +
+      `${addressStr} Quien asistio al centro medico ${tenantName.toUpperCase()} a una consulta con el/la medico ${doctorFullName}.`;
+
+    const paraLines = wrapText(openPara, fontReg, 10, contentWidth);
+    for (const line of paraLines) {
+      page.drawText(line, { x: margin, y, font: fontReg, size: 10, color: dark });
+      y -= 15;
     }
-    if (c.diagnosis) {
-      bodyLines.push('');
-      bodyLines.push(`Diagnóstico: ${c.diagnosis}`);
+    y -= 6;
+
+    // Labeled fields
+    if (doctor?.speciality) {
+      y = drawLabelValue(ctx, 'ESPECIALIDAD: ', doctor.speciality.toUpperCase(), margin, y);
+      y -= 2;
+    }
+    if (c.resumen_clinico) {
+      y = drawLabelValue(ctx, 'RESUMEN CLINICO: ', c.resumen_clinico.toUpperCase(), margin, y);
+      y -= 2;
+    }
+    if (c.actividad_laboral) {
+      y = drawLabelValue(ctx, 'ACTIVIDAD LABORAL: ', c.actividad_laboral.toUpperCase(), margin, y);
+      y -= 2;
+    }
+    if (patient?.phone) {
+      y = drawLabelValue(ctx, 'NUMERO DE CONTACTO: ', patient.phone, margin, y);
+      y -= 2;
+    }
+    if (c.empresa) {
+      y = drawLabelValue(ctx, 'INSTITUCION/EMPRESA: ', c.empresa.toUpperCase(), margin, y);
+      y -= 2;
+    }
+    y -= 4;
+
+    // Diagnosis block
+    page.drawText('DIAGNOSTICO:', { x: margin, y, font: fontBold, size: 10, color: dark });
+    y -= 15;
+    const diagText = c.diagnosis_code
+      ? `${c.diagnosis_code} ${(c.diagnosis ?? '').toUpperCase()}`
+      : (c.diagnosis ?? '').toUpperCase();
+    if (diagText) {
+      page.drawText(diagText, { x: margin, y, font: fontReg, size: 10, color: dark });
+      y -= 15;
+    }
+    y -= 4;
+
+    if (c.contingencia) {
+      y = drawLabelValue(ctx, 'TIPO DE CONTINGENCIA: ', c.contingencia.toUpperCase(), margin, y);
+    }
+    y -= 10;
+
+    // Rest period
+    const daysNum = c.days ?? 1;
+    const restLine = `Por lo que amerita reposo absoluto por ${daysNum} (${numToWords(daysNum)}) dia(s):`;
+    page.drawText(restLine, { x: margin, y, font: fontReg, size: 10, color: dark });
+    y -= 16;
+
+    if (c.from_date) {
+      const desdeShort = formatDateShort(c.from_date);
+      const desdeWords = dateToWords(c.from_date);
+      y = drawLabelValue(ctx, 'DESDE: ', `${desdeShort} (${desdeWords}).`, margin, y);
+    }
+    if (c.to_date) {
+      const hastaShort = formatDateShort(c.to_date);
+      const hastaWords = dateToWords(c.to_date);
+      y = drawLabelValue(ctx, 'HASTA: ', `${hastaShort} (${hastaWords}).`, margin, y);
+    }
+
+    if (c.observations) {
+      y -= 6;
+      page.drawText(`Observaciones: ${c.observations}`, { x: margin, y, font: fontReg, size: 9, color: gray });
+      y -= 14;
+    }
+
+  } else if (cert.certificate_type === 'atencion') {
+    const c = cert.content as {
+      procedimiento?: string; hora_desde?: string; hora_hasta?: string;
+      diagnosis_code?: string; diagnosis?: string; treatment?: string; observations?: string;
+    };
+
+    const dateStr = formatDateShort(cert.issued_at.split('T')[0]!);
+    const horaDesde = c.hora_desde ?? '';
+    const horaHasta = c.hora_hasta ?? '';
+    const timeBlock = horaDesde ? ` ${dateStr} ${horaDesde} desde ${dateStr} ${horaDesde}${horaHasta ? ` hasta ${dateStr} ${horaHasta}` : ''}` : ` ${dateStr}`;
+
+    const procedimiento = c.procedimiento ?? 'CONSULTA MEDICA';
+    const openPara = `Por la presente se certifica que el paciente ${patientLastFirst}` +
+      (patient?.cedula ? ` con CI# ${patient.cedula}` : '') +
+      ` asistio al centro medico ${tenantName.toUpperCase()} el dia de hoy${timeBlock} para realizarse ${procedimiento.toUpperCase()}.`;
+
+    const paraLines = wrapText(openPara, fontReg, 10, contentWidth);
+    for (const line of paraLines) {
+      page.drawText(line, { x: margin, y, font: fontReg, size: 10, color: dark });
+      y -= 15;
+    }
+    y -= 10;
+
+    page.drawText('El interesado puede hacer uso de este documento como estime conveniente.', {
+      x: margin, y, font: fontReg, size: 10, color: dark,
+    });
+    y -= 20;
+
+    if (c.diagnosis_code || c.diagnosis) {
+      const diagText = c.diagnosis_code
+        ? `${c.diagnosis_code} ${(c.diagnosis ?? '').toUpperCase()}`
+        : (c.diagnosis ?? '').toUpperCase();
+      y = drawLabelValue(ctx, 'DIAGNOSTICO: ', diagText, margin, y);
+    }
+    if (c.treatment) {
+      y = drawLabelValue(ctx, 'TRATAMIENTO: ', c.treatment, margin, y);
     }
     if (c.observations) {
-      bodyLines.push('');
-      bodyLines.push(`Observaciones: ${c.observations}`);
+      y = drawLabelValue(ctx, 'OBSERVACIONES: ', c.observations, margin, y);
     }
 
   } else if (cert.certificate_type === 'salud') {
     const c = cert.content as { purpose?: string; observations?: string; valid_until_date?: string };
-    const purposes: Record<string,string> = { trabajo: 'trabajo', deporte: 'la práctica deportiva', escuela: 'actividades escolares', viaje: 'viaje', otro: 'las actividades indicadas' };
-    bodyLines.push(`CERTIFICA que el/la paciente:`);
-    bodyLines.push('');
-    bodyLines.push(`${patientName}${patientCedula}${patientAge}`);
-    bodyLines.push('');
-    bodyLines.push(`se encuentra en BUEN ESTADO DE SALUD y APTO/A para ${purposes[c.purpose ?? ''] ?? c.purpose ?? 'las actividades indicadas'}.`);
-    if (c.observations) {
-      bodyLines.push('');
-      bodyLines.push(`Observaciones: ${c.observations}`);
+    const purposes: Record<string, string> = {
+      trabajo: 'TRABAJO', deporte: 'LA PRACTICA DEPORTIVA',
+      escuela: 'ACTIVIDADES ESCOLARES', viaje: 'VIAJE', otro: 'LAS ACTIVIDADES INDICADAS',
+    };
+    const openPara = `Por medio de la presente certifico que el/la paciente ${patientFullName}` +
+      (patient?.cedula ? ` con CI# ${patient.cedula}` : '') +
+      ` se encuentra en BUEN ESTADO DE SALUD y APTO/A para ${purposes[c.purpose ?? ''] ?? 'LAS ACTIVIDADES INDICADAS'}.`;
+
+    const paraLines = wrapText(openPara, fontReg, 10, contentWidth);
+    for (const line of paraLines) {
+      page.drawText(line, { x: margin, y, font: fontReg, size: 10, color: dark });
+      y -= 15;
     }
     if (c.valid_until_date) {
-      bodyLines.push('');
-      bodyLines.push(`Válido hasta: ${formatDate(c.valid_until_date)}`);
-    }
-
-  } else if (cert.certificate_type === 'atencion') {
-    const c = cert.content as { diagnosis?: string; treatment?: string; observations?: string };
-    bodyLines.push(`CERTIFICA que el/la paciente:`);
-    bodyLines.push('');
-    bodyLines.push(`${patientName}${patientCedula}${patientAge}`);
-    bodyLines.push('');
-    bodyLines.push(`fue atendido/a en consulta médica en la fecha indicada.`);
-    if (c.diagnosis) {
-      bodyLines.push('');
-      bodyLines.push(`Diagnóstico: ${c.diagnosis}`);
-    }
-    if (c.treatment) {
-      bodyLines.push('');
-      bodyLines.push(`Tratamiento indicado: ${c.treatment}`);
+      y -= 6;
+      y = drawLabelValue(ctx, 'VALIDO HASTA: ', formatDateShort(c.valid_until_date), margin, y);
     }
     if (c.observations) {
-      bodyLines.push('');
-      bodyLines.push(`Observaciones: ${c.observations}`);
+      y -= 6;
+      page.drawText(`Observaciones: ${c.observations}`, { x: margin, y, font: fontReg, size: 9, color: gray });
+      y -= 14;
     }
 
   } else {
     // personalizado
     const c = cert.content as { body?: string };
-    bodyLines.push(c.body ?? '');
-  }
-
-  // Render body lines with word wrapping
-  for (const line of bodyLines) {
-    if (line === '') { y -= 10; continue; }
-    const wrapped = wrapText(line, fontRegular, 11, contentWidth);
-    for (const wl of wrapped) {
-      drawText(page, wl, margin, y, fontRegular, 11);
-      y -= 16;
+    const lines = wrapText(c.body ?? '', fontReg, 10, contentWidth);
+    for (const line of lines) {
+      page.drawText(line, { x: margin, y, font: fontReg, size: 10, color: dark });
+      y -= 15;
     }
   }
 
-  // ── Legal footer ──────────────────────────────────────────────────────────
-  y -= 20;
-  drawText(page, 'El presente certificado se expide a petición del interesado/a para los fines que estime conveniente.', margin, y, fontRegular, 9, rgb(0.5,0.5,0.5));
+  // ── Legal note ─────────────────────────────────────────────────────────
+  y -= 14;
+  page.drawText('El presente certificado se expide a peticion del interesado/a para los fines que estime conveniente.',
+    { x: margin, y, font: fontReg, size: 8, color: gray });
 
-  // ── Signature area ────────────────────────────────────────────────────────
-  y -= 60;
-  page.drawLine({ start: { x: margin + 40, y }, end: { x: margin + 180, y }, thickness: 0.5, color: rgb(0.3,0.3,0.3) });
-  drawText(page, doctorName, margin + 44, y - 14, fontBold, 9);
-  if (cert.doctor?.speciality) {
-    drawText(page, cert.doctor.speciality, margin + 44, y - 26, fontRegular, 8, rgb(0.4,0.4,0.4));
+  // ── Signature block ────────────────────────────────────────────────────
+  const sigY = Math.min(y - 55, 160);
+
+  // Signature line
+  page.drawLine({
+    start: { x: margin, y: sigY + 30 },
+    end:   { x: margin + 180, y: sigY + 30 },
+    thickness: 0.5, color: dark,
+  });
+
+  page.drawText(doctorFullName, { x: margin, y: sigY + 16, font: fontBold, size: 9, color: dark });
+  if (doctor?.speciality) {
+    page.drawText(doctor.speciality.toUpperCase(), { x: margin, y: sigY + 4, font: fontReg, size: 8, color: gray });
+  }
+  page.drawText(tenantName.toUpperCase(), { x: margin, y: sigY - 8, font: fontReg, size: 8, color: gray });
+  if (doctor?.senescyt_registration) {
+    page.drawText(`NUMERO DE REGISTRO: ${doctor.senescyt_registration}`, { x: margin, y: sigY - 20, font: fontReg, size: 8, color: gray });
   }
 
-  // ── QR / Verification code ────────────────────────────────────────────────
-  const verifyText = `Código de verificación: ${cert.verification_code}`;
-  drawText(page, verifyText, width - margin - fontRegular.widthOfTextAtSize(verifyText, 8), y - 14, fontRegular, 8, rgb(0.5,0.5,0.5));
+  // Verification code (bottom right of signature area)
+  const verifyText = `Codigo de verificacion: ${cert.verification_code}`;
+  const vw = fontReg.widthOfTextAtSize(verifyText, 7);
+  page.drawText(verifyText, { x: width - margin - vw, y: sigY - 20, font: fontReg, size: 7, color: gray });
+  page.drawText('Firmado electronicamente', { x: width - margin - fontReg.widthOfTextAtSize('Firmado electronicamente', 8), y: sigY + 16, font: fontReg, size: 8, color: gray });
 
-  // ── Bottom border ─────────────────────────────────────────────────────────
-  page.drawRectangle({ x: 0, y: 0, width, height: 20, color: rgb(0.12, 0.25, 0.69) });
+  // ── Bottom blue bar ────────────────────────────────────────────────────
+  page.drawRectangle({ x: 0, y: 0, width, height: 22, color: blue });
+  const footerText = `${tenantName}${tenant?.sri_ruc ? `  |  RUC: ${tenant.sri_ruc}` : ''}${tenant?.sri_telefono ? `  |  Tel: ${tenant.sri_telefono}` : ''}`;
+  page.drawText(footerText, { x: margin, y: 7, font: fontReg, size: 7, color: rgb(1, 1, 1) });
 
   return pdfDoc.save();
 }
 
 // ---------------------------------------------------------------------------
-// Electronic signature with p12 cert (PKCS#7 / CMS)
+// Electronic signature (PKCS#7)
 // ---------------------------------------------------------------------------
 
 async function signPdf(pdfBytes: Uint8Array, p12Buffer: Buffer, p12Password: string): Promise<Uint8Array> {
   try {
-    const p12Der = forge.util.createBuffer(p12Buffer.toString('binary'));
+    const p12Der  = forge.util.createBuffer(p12Buffer.toString('binary'));
     const p12Asn1 = forge.asn1.fromDer(p12Der);
-    const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, p12Password);
+    const p12     = forge.pkcs12.pkcs12FromAsn1(p12Asn1, p12Password);
 
-    // Extract cert and key
     const certBags = p12.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag] ?? [];
     const keyBags  = p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag })[forge.pki.oids.pkcs8ShroudedKeyBag] ?? [];
+    if (!certBags[0]?.cert || !keyBags[0]?.key) return pdfBytes;
 
-    if (!certBags[0]?.cert || !keyBags[0]?.key) return pdfBytes; // return unsigned if no cert
-
-    const cert       = certBags[0].cert!;
-    const privateKey = keyBags[0].key!;
-
-    // Create detached PKCS#7 signature over PDF bytes
     const p7 = forge.pkcs7.createSignedData();
     p7.content = forge.util.createBuffer(Buffer.from(pdfBytes).toString('binary'));
-    p7.addCertificate(cert);
+    p7.addCertificate(certBags[0].cert!);
     p7.addSigner({
-      key: privateKey,
-      certificate: cert,
+      key: keyBags[0].key!,
+      certificate: certBags[0].cert!,
       digestAlgorithm: forge.pki.oids.sha256,
       authenticatedAttributes: [
-        { type: forge.pki.oids.contentType, value: forge.pki.oids.data },
+        { type: forge.pki.oids.contentType,  value: forge.pki.oids.data },
         { type: forge.pki.oids.messageDigest },
-        { type: forge.pki.oids.signingTime, value: new Date().toISOString() },
+        { type: forge.pki.oids.signingTime,  value: new Date().toISOString() },
       ],
     });
     p7.sign({ detached: true });
 
-    // Embed signature as PDF metadata comment (simple approach for beta)
-    const sigDer  = forge.asn1.toDer(p7.toAsn1()).getBytes();
-    const sigB64  = Buffer.from(sigDer, 'binary').toString('base64');
-    const comment = `\n%% PKCS7-SIGNATURE: ${sigB64}\n`;
-    const commentBytes = new TextEncoder().encode(comment);
-
-    const merged = new Uint8Array(pdfBytes.length + commentBytes.length);
+    const sigB64   = Buffer.from(forge.asn1.toDer(p7.toAsn1()).getBytes(), 'binary').toString('base64');
+    const comment  = new TextEncoder().encode(`\n%% PKCS7-SIGNATURE: ${sigB64}\n`);
+    const merged   = new Uint8Array(pdfBytes.length + comment.length);
     merged.set(pdfBytes);
-    merged.set(commentBytes, pdfBytes.length);
+    merged.set(comment, pdfBytes.length);
     return merged;
   } catch {
-    // If signing fails, return unsigned PDF (cert may not be configured)
     return pdfBytes;
   }
 }
 
 // ---------------------------------------------------------------------------
-// Route handler
+// Route
 // ---------------------------------------------------------------------------
 
 export async function GET(
@@ -317,50 +476,45 @@ export async function GET(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // Fetch certificate with related data
   const { data: cert, error } = await supabase
     .from('medical_certificates')
     .select(`
       id, certificate_type, certificate_number, content, issued_at,
       valid_until, verification_code, is_signed,
-      patient:patients(first_name, last_name, cedula, birth_date),
+      patient:patients(first_name, last_name, cedula, birth_date, address, phone, city),
       doctor:user_profiles(first_name, last_name, speciality, senescyt_registration, cedula),
-      tenant:tenants(name, sri_ruc, settings)
+      tenant:tenants(id, name, sri_ruc, sri_direccion, sri_telefono, settings)
     `)
     .eq('id', id)
     .single();
 
-  if (error || !cert) {
-    return NextResponse.json({ error: 'Certificate not found' }, { status: 404 });
-  }
+  if (error || !cert) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const certRow = cert as unknown as CertificateRow;
-
-  // Generate PDF
   let pdfBytes = await buildCertificatePdf(certRow);
 
-  // Try to sign with tenant's p12 cert if available
+  // Try electronic signature
   const adminClient = createAdmin(
     process.env['NEXT_PUBLIC_SUPABASE_URL']!,
     process.env['SUPABASE_SERVICE_ROLE_KEY']!,
     { auth: { persistSession: false } },
   );
+  const tenantId = certRow.tenant?.id ?? '';
+  if (tenantId) {
+    const { data: tenantFull } = await adminClient
+      .from('tenants')
+      .select('sri_cert_p12, sri_cert_password')
+      .eq('id', tenantId)
+      .single();
 
-  const tenantId = (certRow.tenant as unknown as { id?: string })?.id ?? '';
-  const { data: tenantFull } = tenantId
-    ? await adminClient.from('tenants').select('sri_cert_p12, sri_cert_password').eq('id', tenantId).single()
-    : { data: null };
-
-  if (tenantFull?.sri_cert_p12 && tenantFull.sri_cert_password) {
-    try {
-      const p12Buf = Buffer.from(tenantFull.sri_cert_p12 as string, 'base64');
-      pdfBytes = await signPdf(pdfBytes, p12Buf, tenantFull.sri_cert_password as string);
-    } catch {
-      // sign failure → return unsigned
+    if (tenantFull?.sri_cert_p12 && tenantFull.sri_cert_password) {
+      try {
+        const p12Buf = Buffer.from(tenantFull.sri_cert_p12 as string, 'base64');
+        pdfBytes = await signPdf(pdfBytes, p12Buf, tenantFull.sri_cert_password as string);
+      } catch { /* unsigned */ }
     }
   }
 
-  // Update is_signed status
   await supabase
     .from('medical_certificates')
     .update({ is_signed: true, signed_at: new Date().toISOString() })

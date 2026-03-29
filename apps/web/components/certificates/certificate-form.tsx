@@ -8,10 +8,6 @@ import { Label } from '@/components/ui/label';
 import { X } from 'lucide-react';
 import { Cie10Autocomplete } from '@/components/shared/cie10-autocomplete';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 type CertType = 'reposo' | 'salud' | 'atencion' | 'personalizado';
 
 interface Props {
@@ -24,10 +20,6 @@ interface Props {
   onCancel: () => void;
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export function CertificateForm({
   tenantId, patientId, patientName, consultationId, doctorId, onSuccess, onCancel,
 }: Props) {
@@ -37,26 +29,33 @@ export function CertificateForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // reposo
+  // ── reposo ────────────────────────────────────────────────────────────────
   const [days, setDays] = useState('1');
-  const [diagnosisCode, setDiagnosisCode] = useState('');
-  const [diagnosisDesc, setDiagnosisDesc] = useState('');
   const [fromDate, setFromDate] = useState(new Date().toISOString().split('T')[0]!);
   const [toDate, setToDate] = useState('');
+  const [diagnosisCode, setDiagnosisCode] = useState('');
+  const [diagnosisDesc, setDiagnosisDesc] = useState('');
+  const [resumenClinico, setResumenClinico] = useState('');
+  const [actividadLaboral, setActividadLaboral] = useState('');
+  const [empresa, setEmpresa] = useState('');
+  const [contingencia, setContingencia] = useState('ENFERMEDAD GENERAL');
 
-  // salud
+  // ── salud ─────────────────────────────────────────────────────────────────
   const [purpose, setPurpose] = useState('trabajo');
   const [validUntilDate, setValidUntilDate] = useState('');
 
-  // atencion
+  // ── atención ──────────────────────────────────────────────────────────────
+  const [procedimiento, setProcedimiento] = useState('');
+  const [horaDesde, setHoraDesde] = useState('');
+  const [horaHasta, setHoraHasta] = useState('');
   const [ateDiagnosisCode, setAteDiagnosisCode] = useState('');
   const [ateDiagnosisDesc, setAteDiagnosisDesc] = useState('');
   const [treatment, setTreatment] = useState('');
 
-  // shared
+  // ── shared ────────────────────────────────────────────────────────────────
   const [observations, setObservations] = useState('');
 
-  // personalizado
+  // ── personalizado ─────────────────────────────────────────────────────────
   const [customTitle, setCustomTitle] = useState('');
   const [customBody, setCustomBody] = useState('');
 
@@ -64,14 +63,36 @@ export function CertificateForm({
   const labelClass = 'text-sm font-medium text-gray-700';
   const selectClass = 'flex h-10 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring';
 
+  function handleFromDateChange(val: string) {
+    setFromDate(val);
+    if (val && days) {
+      const d = new Date(val);
+      d.setDate(d.getDate() + Number(days) - 1);
+      setToDate(d.toISOString().split('T')[0]!);
+    }
+  }
+
+  function handleDaysChange(val: string) {
+    setDays(val);
+    if (fromDate && val) {
+      const d = new Date(fromDate);
+      d.setDate(d.getDate() + Number(val) - 1);
+      setToDate(d.toISOString().split('T')[0]!);
+    }
+  }
+
   function buildContent(): Record<string, unknown> {
     if (certType === 'reposo') {
       return {
         days: Number(days),
-        diagnosis_code: diagnosisCode,
-        diagnosis: diagnosisDesc,
         from_date: fromDate,
         to_date: toDate,
+        diagnosis_code: diagnosisCode,
+        diagnosis: diagnosisDesc,
+        resumen_clinico: resumenClinico,
+        actividad_laboral: actividadLaboral,
+        empresa,
+        contingencia,
         observations,
       };
     }
@@ -79,7 +100,15 @@ export function CertificateForm({
       return { purpose, observations, valid_until_date: validUntilDate || null };
     }
     if (certType === 'atencion') {
-      return { diagnosis_code: ateDiagnosisCode, diagnosis: ateDiagnosisDesc, treatment, observations };
+      return {
+        procedimiento,
+        hora_desde: horaDesde,
+        hora_hasta: horaHasta,
+        diagnosis_code: ateDiagnosisCode,
+        diagnosis: ateDiagnosisDesc,
+        treatment,
+        observations,
+      };
     }
     return { title: customTitle, body: customBody };
   }
@@ -92,9 +121,6 @@ export function CertificateForm({
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setError('No autenticado'); setLoading(false); return; }
 
-    const content = buildContent();
-
-    // Generate certificate number
     const year = new Date().getFullYear();
     const rand = Math.floor(Math.random() * 9000) + 1000;
     const certNumber = `CERT-${year}-${rand}`;
@@ -108,15 +134,14 @@ export function CertificateForm({
         consultation_id: consultationId ?? null,
         certificate_type: certType,
         certificate_number: certNumber,
-        content,
+        content: buildContent(),
       })
       .select('id')
       .single();
 
     if (insertError) {
-      const msg = typeof insertError === 'object' && 'message' in insertError
-        ? String(insertError.message) : JSON.stringify(insertError);
-      setError(msg);
+      setError(typeof insertError === 'object' && 'message' in insertError
+        ? String(insertError.message) : JSON.stringify(insertError));
       setLoading(false);
       return;
     }
@@ -126,16 +151,15 @@ export function CertificateForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
           <h2 className="font-bold text-lg">Nuevo certificado médico</h2>
           <button onClick={onCancel} className="text-muted-foreground hover:text-gray-900">
             <X size={20} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Paciente */}
           <div className="text-sm text-muted-foreground bg-gray-50 rounded-lg px-4 py-2">
             Paciente: <span className="font-semibold text-gray-900">{patientName}</span>
@@ -147,25 +171,25 @@ export function CertificateForm({
             <select value={certType} onChange={(e) => setCertType(e.target.value as CertType)} className={selectClass}>
               <option value="reposo">Reposo médico / Incapacidad</option>
               <option value="salud">Certificado de salud / Aptitud</option>
-              <option value="atencion">Constancia de atención médica</option>
+              <option value="atencion">Constancia de atención / Asistencia</option>
               <option value="personalizado">Personalizado</option>
             </select>
           </div>
 
-          {/* ── REPOSO ────────────────────────────────────────────────── */}
+          {/* ── REPOSO ──────────────────────────────────────────────────────── */}
           {certType === 'reposo' && (
             <>
+              {/* Fechas y días */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label className={labelClass}>Días de reposo</Label>
                   <Input type="number" min={1} max={365} value={days}
-                    onChange={(e) => setDays(e.target.value)} className={inputClass} required />
+                    onChange={(e) => handleDaysChange(e.target.value)} className={inputClass} required />
                 </div>
                 <div className="space-y-1.5">
                   <Label className={labelClass}>Desde</Label>
                   <Input type="date" value={fromDate}
-                    onChange={(e) => { setFromDate(e.target.value); if (e.target.value && days) { const d = new Date(e.target.value); d.setDate(d.getDate() + Number(days) - 1); setToDate(d.toISOString().split('T')[0]!); } }}
-                    className={inputClass} required />
+                    onChange={(e) => handleFromDateChange(e.target.value)} className={inputClass} required />
                 </div>
                 <div className="space-y-1.5">
                   <Label className={labelClass}>Hasta</Label>
@@ -173,8 +197,10 @@ export function CertificateForm({
                     onChange={(e) => setToDate(e.target.value)} className={inputClass} />
                 </div>
               </div>
+
+              {/* Diagnóstico CIE-10 */}
               <div className="space-y-1.5">
-                <Label className={labelClass}>Diagnóstico CIE-10</Label>
+                <Label className={labelClass}>Diagnóstico CIE-10 <span className="text-red-400">*</span></Label>
                 <Cie10Autocomplete
                   value={diagnosisCode ? `${diagnosisCode} - ${diagnosisDesc}` : diagnosisDesc}
                   onChange={(code, desc) => { setDiagnosisCode(code); setDiagnosisDesc(desc); }}
@@ -182,10 +208,42 @@ export function CertificateForm({
                   placeholder="Buscar por código (J06) o descripción..."
                 />
               </div>
+
+              {/* Resumen clínico */}
+              <div className="space-y-1.5">
+                <Label className={labelClass}>Resumen clínico (síntomas)</Label>
+                <Input value={resumenClinico} onChange={(e) => setResumenClinico(e.target.value)}
+                  placeholder="Ej: TOS, ALZA TÉRMICA, MALESTAR GENERAL" className={inputClass} />
+              </div>
+
+              {/* Actividad laboral y empresa */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className={labelClass}>Actividad laboral</Label>
+                  <Input value={actividadLaboral} onChange={(e) => setActividadLaboral(e.target.value)}
+                    placeholder="Ej: Docente, Contador..." className={inputClass} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className={labelClass}>Institución / Empresa</Label>
+                  <Input value={empresa} onChange={(e) => setEmpresa(e.target.value)}
+                    placeholder="Nombre de la empresa" className={inputClass} />
+                </div>
+              </div>
+
+              {/* Tipo de contingencia */}
+              <div className="space-y-1.5">
+                <Label className={labelClass}>Tipo de contingencia</Label>
+                <select value={contingencia} onChange={(e) => setContingencia(e.target.value)} className={selectClass}>
+                  <option value="ENFERMEDAD GENERAL">Enfermedad general</option>
+                  <option value="ACCIDENTE DE TRABAJO">Accidente de trabajo</option>
+                  <option value="MATERNIDAD">Maternidad</option>
+                  <option value="ACCIDENTE DE TRÁNSITO">Accidente de tránsito</option>
+                </select>
+              </div>
             </>
           )}
 
-          {/* ── SALUD ──────────────────────────────────────────────────── */}
+          {/* ── SALUD ───────────────────────────────────────────────────────── */}
           {certType === 'salud' && (
             <>
               <div className="space-y-1.5">
@@ -206,11 +264,31 @@ export function CertificateForm({
             </>
           )}
 
-          {/* ── ATENCIÓN ───────────────────────────────────────────────── */}
+          {/* ── ATENCIÓN ────────────────────────────────────────────────────── */}
           {certType === 'atencion' && (
             <>
+              {/* Procedimiento */}
               <div className="space-y-1.5">
-                <Label className={labelClass}>Diagnóstico CIE-10</Label>
+                <Label className={labelClass}>Procedimiento / Motivo de atención <span className="text-red-400">*</span></Label>
+                <Input value={procedimiento} onChange={(e) => setProcedimiento(e.target.value)}
+                  placeholder="Ej: CONSULTA MÉDICA GENERAL, EXAMEN ECOGRÁFICO..." className={inputClass} required />
+              </div>
+
+              {/* Horario */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className={labelClass}>Hora de inicio</Label>
+                  <Input type="time" value={horaDesde} onChange={(e) => setHoraDesde(e.target.value)} className={inputClass} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className={labelClass}>Hora de fin</Label>
+                  <Input type="time" value={horaHasta} onChange={(e) => setHoraHasta(e.target.value)} className={inputClass} />
+                </div>
+              </div>
+
+              {/* Diagnóstico CIE-10 (opcional) */}
+              <div className="space-y-1.5">
+                <Label className={labelClass}>Diagnóstico CIE-10 (opcional)</Label>
                 <Cie10Autocomplete
                   value={ateDiagnosisCode ? `${ateDiagnosisCode} - ${ateDiagnosisDesc}` : ateDiagnosisDesc}
                   onChange={(code, desc) => { setAteDiagnosisCode(code); setAteDiagnosisDesc(desc); }}
@@ -218,15 +296,16 @@ export function CertificateForm({
                   placeholder="Buscar por código (J06) o descripción..."
                 />
               </div>
+
               <div className="space-y-1.5">
-                <Label className={labelClass}>Tratamiento indicado</Label>
+                <Label className={labelClass}>Tratamiento indicado (opcional)</Label>
                 <Input value={treatment} onChange={(e) => setTreatment(e.target.value)}
                   placeholder="Medicación, indicaciones, etc." className={inputClass} />
               </div>
             </>
           )}
 
-          {/* ── PERSONALIZADO ──────────────────────────────────────────── */}
+          {/* ── PERSONALIZADO ───────────────────────────────────────────────── */}
           {certType === 'personalizado' && (
             <>
               <div className="space-y-1.5">
@@ -248,7 +327,7 @@ export function CertificateForm({
             </>
           )}
 
-          {/* Observaciones (todos excepto personalizado) */}
+          {/* Observaciones */}
           {certType !== 'personalizado' && (
             <div className="space-y-1.5">
               <Label className={labelClass}>Observaciones adicionales (opcional)</Label>
@@ -258,15 +337,11 @@ export function CertificateForm({
           )}
 
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
           )}
 
           <div className="flex gap-3 justify-end pt-2">
-            <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
-              Cancelar
-            </Button>
+            <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>Cancelar</Button>
             <Button type="submit" disabled={loading}>
               {loading ? 'Generando...' : 'Generar certificado'}
             </Button>
