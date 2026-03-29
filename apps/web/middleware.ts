@@ -73,6 +73,16 @@ export async function middleware(request: NextRequest) {
   // 3. Rutas del tenant app (slug.medicore.ec/...)
   // -------------------------------------------------------
   if (tenantSlug) {
+    // Auth paths se sirven directamente (sin rewrite) para evitar redirect loops
+    const isAuthPath =
+      pathname.startsWith('/login') ||
+      pathname.startsWith('/register') ||
+      pathname.startsWith('/onboarding');
+
+    if (isAuthPath) {
+      return response;
+    }
+
     // Reescribir internamente a /app/[slug]/...
     const url = request.nextUrl.clone();
     const isPortalPath = pathname.startsWith('/portal');
