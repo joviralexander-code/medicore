@@ -4,7 +4,7 @@ import { createClient as createAdmin } from '@supabase/supabase-js';
 import { PDFDocument, rgb, StandardFonts, PDFFont, PDFPage } from 'pdf-lib';
 import crypto from 'crypto';
 import QRCode from 'qrcode';
-import SignPdf from '@signpdf/signpdf';
+import signpdf from '@signpdf/signpdf';
 import { P12Signer } from '@signpdf/signer-p12';
 import { plainAddPlaceholder } from '@signpdf/placeholder-plain';
 
@@ -458,7 +458,6 @@ async function signPdfEmbedded(
     });
 
     const signer = new P12Signer(p12Buffer, { passphrase: p12Password });
-    const signpdf = new SignPdf();
     const signedBuffer = await signpdf.sign(pdfWithPlaceholder, signer);
     return { signed: new Uint8Array(signedBuffer), success: true };
   } catch {
