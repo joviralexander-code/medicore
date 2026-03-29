@@ -3,6 +3,21 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdmin } from '@supabase/supabase-js';
 import { PDFDocument, rgb, StandardFonts, PDFFont, PDFPage } from 'pdf-lib';
 import forge from 'node-forge';
+import crypto from 'crypto';
+
+function decryptPassword(encrypted: string): string {
+  try {
+    const [ivHex, dataHex] = encrypted.split(':');
+    if (!ivHex || !dataHex) return encrypted; // not encrypted format, return as-is
+    const rawKey = process.env['SRI_CERT_ENCRYPTION_KEY'] ?? 'fallback-key-32-bytes-padding!!';
+    const key = Buffer.alloc(32);
+    Buffer.from(rawKey).copy(key);
+    const decipher = crypto.createDecipheriv('aes-256-cbc', key, Buffer.from(ivHex, 'hex'));
+    return Buffer.concat([decipher.update(Buffer.from(dataHex, 'hex')), decipher.final()]).toString('utf8');
+  } catch {
+    return encrypted; // fallback: use as-is
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -510,7 +525,8 @@ export async function GET(
     if (tenantFull?.sri_cert_p12 && tenantFull.sri_cert_password) {
       try {
         const p12Buf = Buffer.from(tenantFull.sri_cert_p12 as string, 'base64');
-        pdfBytes = await signPdf(pdfBytes, p12Buf, tenantFull.sri_cert_password as string);
+        const plainPassword = decryptPassword(tenantFull.sri_cert_password as string);
+        pdfBytes = await signPdf(pdfBytes, p12Buf, plainPassword);
       } catch { /* unsigned */ }
     }
   }
