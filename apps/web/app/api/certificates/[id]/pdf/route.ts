@@ -515,14 +515,22 @@ export async function GET(
 
     if (tenantFull?.sri_cert_p12 && tenantFull.sri_cert_password) {
       try {
-        // P12 may be stored as JSON.stringify(Buffer) or as base64 string
+        // P12 stored formats: Uint8Array | \xHEX (Supabase bytea) | JSON.stringify(Buffer) | base64
         const raw = tenantFull.sri_cert_p12 as unknown;
         let p12Buf: Buffer;
         if (raw instanceof Uint8Array) {
           p12Buf = Buffer.from(raw);
         } else {
           const str = String(raw);
-          if (str.startsWith('{')) {
+          if (str.startsWith('\\x') || str.startsWith('\x')) {
+            // Supabase bytea → hex string, content is JSON.stringify(Buffer)
+            const hex = str.startsWith('\\x') ? str.slice(2) : str.slice(1);
+            const jsonStr = Buffer.from(hex, 'hex').toString('utf8');
+            const parsed = JSON.parse(jsonStr) as { type?: string; data?: number[] };
+            p12Buf = parsed.type === 'Buffer' && Array.isArray(parsed.data)
+              ? Buffer.from(parsed.data)
+              : Buffer.from(jsonStr, 'base64');
+          } else if (str.startsWith('{')) {
             const parsed = JSON.parse(str) as { type?: string; data?: number[] };
             p12Buf = parsed.type === 'Buffer' && Array.isArray(parsed.data)
               ? Buffer.from(parsed.data)
@@ -531,6 +539,7 @@ export async function GET(
             p12Buf = Buffer.from(str, 'base64');
           }
         }
+        console.warn('[cert/pdf] p12 size:', p12Buf.length, 'bytes, first2:', p12Buf[0]?.toString(16), p12Buf[1]?.toString(16));
         const plainPassword = decryptPassword(tenantFull.sri_cert_password as string);
         const doctorName = certRow.doctor
           ? `${certRow.doctor.first_name} ${certRow.doctor.last_name}`
