@@ -73,18 +73,30 @@ const server = app.listen(env.PORT, () => {
 });
 
 // -------------------------------------------------------
-// BullMQ Workers + Cron (only in non-test env)
+// BullMQ Workers + Cron (only in non-test env, requires Redis)
 // -------------------------------------------------------
 if (env.NODE_ENV !== 'test') {
-  startPharmacyWorker();
-  startReminderWorker();
-  startSriWorker();
-  startSocialWorker();
-  startWhatsappWorker();
-  startEtlWorker();
-  registerCronJobs().catch((err: unknown) => {
-    console.error('[cron] Failed to register cron jobs:', err);
-  });
+  // Delay worker startup to allow Redis connection to establish
+  setTimeout(() => {
+    import('./config/redis').then(({ redis }) => {
+      redis.ping()
+        .then(() => {
+          console.warn('[workers] Redis connected — starting background workers');
+          startPharmacyWorker();
+          startReminderWorker();
+          startSriWorker();
+          startSocialWorker();
+          startWhatsappWorker();
+          startEtlWorker();
+          return registerCronJobs();
+        })
+        .catch((err: unknown) => {
+          console.warn('[workers] Redis not available — running without background workers:', (err as Error).message);
+        });
+    }).catch((err: unknown) => {
+      console.error('[workers] Failed to load redis config:', err);
+    });
+  }, 5000);
 }
 
 // Graceful shutdown
