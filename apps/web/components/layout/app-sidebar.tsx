@@ -191,7 +191,7 @@ export function AppSidebar({ slug, tenantName, planTier, userRole }: AppSidebarP
           </Link>
         )}
         <p className="text-[10px] text-center text-sidebar-muted truncate px-1">
-          {slug}.medicore.ec
+          {slug}.{process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'medicore.jovir.cloud'}
         </p>
       </div>
     </aside>
