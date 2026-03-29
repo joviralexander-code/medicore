@@ -435,7 +435,8 @@ async function buildCertificatePdf(cert: CertificateRow): Promise<Uint8Array> {
   const footerText = `${tenantName}${tenant?.sri_ruc ? `  |  RUC: ${tenant.sri_ruc}` : ''}${tenant?.sri_telefono ? `  |  Tel: ${tenant.sri_telefono}` : ''}`;
   page.drawText(footerText, { x: margin, y: 7, font: fontReg, size: 7, color: rgb(1, 1, 1) });
 
-  return pdfDoc.save();
+  // useObjectStreams: false required for @signpdf/placeholder-plain xref parsing
+  return pdfDoc.save({ useObjectStreams: false });
 }
 
 // ---------------------------------------------------------------------------
