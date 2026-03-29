@@ -460,7 +460,8 @@ async function signPdfEmbedded(
     const signer = new P12Signer(p12Buffer, { passphrase: p12Password });
     const signedBuffer = await signpdf.sign(pdfWithPlaceholder, signer);
     return { signed: new Uint8Array(signedBuffer), success: true };
-  } catch {
+  } catch (err) {
+    console.error('[signPdfEmbedded] Error:', err instanceof Error ? err.message : String(err));
     return { signed: pdfBytes, success: false };
   }
 }
@@ -521,7 +522,10 @@ export async function GET(
         const result = await signPdfEmbedded(pdfBytes, p12Buf, plainPassword, doctorName);
         pdfBytes = result.signed;
         wasSigned = result.success;
-      } catch { /* unsigned */ }
+        console.warn('[cert/pdf] signature result:', wasSigned ? 'signed' : 'failed');
+      } catch (err) {
+        console.error('[cert/pdf] outer sign error:', err instanceof Error ? err.message : String(err));
+      }
     }
   }
 
