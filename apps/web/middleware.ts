@@ -83,6 +83,14 @@ export async function middleware(request: NextRequest) {
       return response;
     }
 
+    // Si el path ya incluye /app/[slug]/ redirigir sin ese prefijo para evitar double-nesting
+    const appPrefix = `/app/${tenantSlug}`;
+    if (pathname.startsWith(`${appPrefix}/`) || pathname === appPrefix) {
+      const cleanPath = pathname.slice(appPrefix.length) || '/';
+      const cleanUrl = new URL(cleanPath, request.url);
+      return NextResponse.redirect(cleanUrl);
+    }
+
     // Reescribir internamente a /app/[slug]/...
     const url = request.nextUrl.clone();
     const isPortalPath = pathname.startsWith('/portal');
