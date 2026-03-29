@@ -17,7 +17,7 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(`/login?redirect=/app/${slug}/dashboard&tenant=${slug}`);
+    redirect(`/login?redirect=/dashboard&tenant=${slug}`);
   }
 
   // Verificar que el usuario pertenece a este tenant

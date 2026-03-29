@@ -36,8 +36,7 @@ export function LoginForm() {
       return;
     }
 
-    router.push(tenant ? `${redirect}?tenant=${tenant}` : redirect);
-    router.refresh();
+    window.location.href = redirect;
   }
 
   return (

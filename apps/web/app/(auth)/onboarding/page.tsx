@@ -28,7 +28,7 @@ export default async function OnboardingPage() {
   const tenants = profile?.tenants as unknown as { slug: string } | null;
   const tenantSlug = tenants?.slug;
   if (tenantSlug) {
-    redirect(`/app/${tenantSlug}/dashboard`);
+    redirect(`/dashboard`);
   }
 
   return (
