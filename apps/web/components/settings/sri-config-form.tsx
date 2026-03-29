@@ -16,6 +16,10 @@ export interface SriConfigFormProps {
   current: {
     sri_ruc: string | null;
     sri_razon_social: string | null;
+    sri_nombre_comercial: string | null;
+    sri_direccion: string | null;
+    sri_telefono: string | null;
+    sri_email: string | null;
     sri_serie: string | null;
     sri_ambiente: number | null;
   };
@@ -40,13 +44,13 @@ function RequiredMark() {
 // Component
 // ---------------------------------------------------------------------------
 
-export function SriConfigForm({ slug: _slug, tenantId: _tenantId, current }: SriConfigFormProps) {
+export function SriConfigForm({ slug: _slug, tenantId, current }: SriConfigFormProps) {
   const [ruc, setRuc] = useState(current.sri_ruc ?? '');
   const [razonSocial, setRazonSocial] = useState(current.sri_razon_social ?? '');
-  const [nombreComercial, setNombreComercial] = useState('');
-  const [direccion, setDireccion] = useState('');
-  const [telefono, setTelefono] = useState('');
-  const [email, setEmail] = useState('');
+  const [nombreComercial, setNombreComercial] = useState(current.sri_nombre_comercial ?? '');
+  const [direccion, setDireccion] = useState(current.sri_direccion ?? '');
+  const [telefono, setTelefono] = useState(current.sri_telefono ?? '');
+  const [email, setEmail] = useState(current.sri_email ?? '');
   const [serie, setSerie] = useState(current.sri_serie ?? '');
   const [ambiente, setAmbiente] = useState<number>(current.sri_ambiente ?? 1);
 
@@ -77,38 +81,23 @@ export function SriConfigForm({ slug: _slug, tenantId: _tenantId, current }: Sri
 
     try {
       const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
 
-      if (!session) {
-        setError('Sesión expirada. Por favor recarga la página.');
-        setLoading(false);
-        return;
-      }
+      const { error: updateError } = await supabase
+        .from('tenants')
+        .update({
+          sri_ruc: ruc,
+          sri_razon_social: razonSocial,
+          sri_nombre_comercial: nombreComercial || null,
+          sri_direccion: direccion || null,
+          sri_telefono: telefono || null,
+          sri_email: email || null,
+          sri_serie: serie,
+          sri_ambiente: ambiente,
+        })
+        .eq('id', tenantId);
 
-      const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
-      const res = await fetch(`${apiBase}/api/v1/sri/configurar`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          ruc,
-          razonSocial,
-          nombreComercial: nombreComercial || undefined,
-          direccion: direccion || undefined,
-          telefono: telefono || undefined,
-          email: email || undefined,
-          serie,
-          ambiente,
-        }),
-      });
-
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { message?: string };
-        setError(body.message ?? `Error ${res.status}: no se pudo guardar la configuración.`);
+      if (updateError) {
+        setError(updateError.message ?? 'No se pudo guardar la configuración.');
         setLoading(false);
         return;
       }

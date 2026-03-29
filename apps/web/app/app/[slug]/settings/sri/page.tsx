@@ -32,7 +32,7 @@ export default async function SriSettingsPage({ params }: Props) {
 
   const { data: tenant } = await supabase
     .from('tenants')
-    .select('id, sri_ruc, sri_razon_social, sri_serie, sri_ambiente, sri_cert_password')
+    .select('id, sri_ruc, sri_razon_social, sri_nombre_comercial, sri_direccion, sri_telefono, sri_email, sri_serie, sri_ambiente, sri_cert_password')
     .eq('slug', slug)
     .single();
 
@@ -70,6 +70,10 @@ export default async function SriSettingsPage({ params }: Props) {
             current={{
               sri_ruc: tenant.sri_ruc ?? null,
               sri_razon_social: tenant.sri_razon_social ?? null,
+              sri_nombre_comercial: tenant.sri_nombre_comercial ?? null,
+              sri_direccion: tenant.sri_direccion ?? null,
+              sri_telefono: tenant.sri_telefono ?? null,
+              sri_email: tenant.sri_email ?? null,
               sri_serie: tenant.sri_serie ?? null,
               sri_ambiente: tenant.sri_ambiente ?? null,
             }}
