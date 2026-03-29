@@ -515,7 +515,22 @@ export async function GET(
 
     if (tenantFull?.sri_cert_p12 && tenantFull.sri_cert_password) {
       try {
-        const p12Buf = Buffer.from(tenantFull.sri_cert_p12 as string, 'base64');
+        // P12 may be stored as JSON.stringify(Buffer) or as base64 string
+        const raw = tenantFull.sri_cert_p12 as unknown;
+        let p12Buf: Buffer;
+        if (raw instanceof Uint8Array) {
+          p12Buf = Buffer.from(raw);
+        } else {
+          const str = String(raw);
+          if (str.startsWith('{')) {
+            const parsed = JSON.parse(str) as { type?: string; data?: number[] };
+            p12Buf = parsed.type === 'Buffer' && Array.isArray(parsed.data)
+              ? Buffer.from(parsed.data)
+              : Buffer.from(str, 'base64');
+          } else {
+            p12Buf = Buffer.from(str, 'base64');
+          }
+        }
         const plainPassword = decryptPassword(tenantFull.sri_cert_password as string);
         const doctorName = certRow.doctor
           ? `${certRow.doctor.first_name} ${certRow.doctor.last_name}`
