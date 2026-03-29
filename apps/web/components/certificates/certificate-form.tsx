@@ -30,9 +30,10 @@ export function CertificateForm({
   const [error, setError] = useState<string | null>(null);
 
   // ── reposo ────────────────────────────────────────────────────────────────
+  const today = new Date().toISOString().split('T')[0]!;
   const [days, setDays] = useState('1');
-  const [fromDate, setFromDate] = useState(new Date().toISOString().split('T')[0]!);
-  const [toDate, setToDate] = useState('');
+  const [fromDate, setFromDate] = useState(today);
+  const [toDate, setToDate] = useState(today);
   const [diagnosisCode, setDiagnosisCode] = useState('');
   const [diagnosisDesc, setDiagnosisDesc] = useState('');
   const [resumenClinico, setResumenClinico] = useState('');

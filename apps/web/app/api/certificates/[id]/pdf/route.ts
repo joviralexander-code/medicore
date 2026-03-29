@@ -2,20 +2,23 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdmin } from '@supabase/supabase-js';
 import { PDFDocument, rgb, StandardFonts, PDFFont, PDFPage } from 'pdf-lib';
-import forge from 'node-forge';
 import crypto from 'crypto';
+import QRCode from 'qrcode';
+import SignPdf from '@signpdf/signpdf';
+import { P12Signer } from '@signpdf/signer-p12';
+import { plainAddPlaceholder } from '@signpdf/placeholder-plain';
 
 function decryptPassword(encrypted: string): string {
   try {
     const [ivHex, dataHex] = encrypted.split(':');
-    if (!ivHex || !dataHex) return encrypted; // not encrypted format, return as-is
+    if (!ivHex || !dataHex) return encrypted;
     const rawKey = process.env['SRI_CERT_ENCRYPTION_KEY'] ?? 'fallback-key-32-bytes-padding!!';
     const key = Buffer.alloc(32);
     Buffer.from(rawKey).copy(key);
     const decipher = crypto.createDecipheriv('aes-256-cbc', key, Buffer.from(ivHex, 'hex'));
     return Buffer.concat([decipher.update(Buffer.from(dataHex, 'hex')), decipher.final()]).toString('utf8');
   } catch {
-    return encrypted; // fallback: use as-is
+    return encrypted;
   }
 }
 
@@ -86,20 +89,17 @@ function yearToWords(y: number): string {
   return String(y);
 }
 
-/** "2024-11-14" → "CATORCE DE NOVIEMBRE DEL DOS MIL VEINTICUATRO" */
 function dateToWords(dateStr: string): string {
   const [y, m, d] = dateStr.split('-').map(Number);
   if (!y || !m || !d) return dateStr;
   return `${numToWords(d)} DE ${MONTHS_ES[m - 1] ?? ''} DEL ${yearToWords(y)}`;
 }
 
-/** "2024-11-14" → "14/11/2024" */
 function formatDateShort(dateStr: string): string {
   const [y, m, d] = dateStr.split('-');
   return `${d}/${m}/${y}`;
 }
 
-/** "2024-11-14" → "Quito, 14 de noviembre del 2024" (header date) */
 function formatDateHeader(iso: string, city?: string | null): string {
   const d = new Date(iso);
   const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -148,12 +148,10 @@ function drawWrapped(ctx: DrawCtx, text: string, x: number, y: number, size: num
   return y;
 }
 
-/** Draw "LABEL: value" where label is bold and value is regular, with wrapping */
 function drawLabelValue(ctx: DrawCtx, label: string, value: string, x: number, y: number, size = 10): number {
   if (!value) return y;
   const labelWidth = ctx.fontBold.widthOfTextAtSize(label, size);
   ctx.page.drawText(label, { x, y, font: ctx.fontBold, size, color: ctx.dark });
-  // wrap the value
   const maxValWidth = ctx.contentWidth - (x - ctx.margin) - labelWidth;
   const lines = wrapText(value, ctx.fontReg, size, maxValWidth);
   ctx.page.drawText(lines[0] ?? '', { x: x + labelWidth, y, font: ctx.fontReg, size, color: ctx.dark });
@@ -198,7 +196,6 @@ async function buildCertificatePdf(cert: CertificateRow): Promise<Uint8Array> {
   const headerDate = formatDateHeader(cert.issued_at, patient?.city);
   page.drawText(headerDate, { x: margin, y, font: fontReg, size: 10, color: dark });
 
-  // Clinic block top-right
   const clinicLines = [
     tenantName.toUpperCase(),
     ...(tenant?.sri_ruc ? [`RUC: ${tenant.sri_ruc}`] : []),
@@ -217,11 +214,11 @@ async function buildCertificatePdf(cert: CertificateRow): Promise<Uint8Array> {
   page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 0.8, color: blue });
   y -= 22;
 
-  // ── Title (centered, underlined) ───────────────────────────────────────
+  // ── Title ──────────────────────────────────────────────────────────────
   const titles: Record<string, string> = {
-    reposo:       'CERTIFICADO MEDICO',
-    salud:        'CERTIFICADO DE SALUD',
-    atencion:     'CERTIFICADO DE ASISTENCIA',
+    reposo:        'CERTIFICADO MEDICO',
+    salud:         'CERTIFICADO DE SALUD',
+    atencion:      'CERTIFICADO DE ASISTENCIA',
     personalizado: String(cert.content.title ?? 'CERTIFICADO MEDICO'),
   };
   const title = titles[cert.certificate_type] ?? 'CERTIFICADO MEDICO';
@@ -229,12 +226,7 @@ async function buildCertificatePdf(cert: CertificateRow): Promise<Uint8Array> {
   const titleW = fontBold.widthOfTextAtSize(title, titleSize);
   const titleX = (width - titleW) / 2;
   page.drawText(title, { x: titleX, y, font: fontBold, size: titleSize, color: dark });
-  // Underline
-  page.drawLine({
-    start: { x: titleX, y: y - 2 },
-    end:   { x: titleX + titleW, y: y - 2 },
-    thickness: 1, color: dark,
-  });
+  page.drawLine({ start: { x: titleX, y: y - 2 }, end: { x: titleX + titleW, y: y - 2 }, thickness: 1, color: dark });
   y -= 30;
 
   // ── Body by certificate type ───────────────────────────────────────────
@@ -247,7 +239,6 @@ async function buildCertificatePdf(cert: CertificateRow): Promise<Uint8Array> {
       empresa?: string; contingencia?: string; observations?: string;
     };
 
-    // Opening paragraph
     const addressStr = patient?.address ? ` y domiciliado/a en: ${patient.address.toUpperCase()}.` : '.';
     const openPara = `Por medio de la presente certifico haber atendido al Pcte. ${patientFullName}` +
       (patient?.cedula ? ` con CI# ${patient.cedula}, numero de historia clinica ${patient.cedula}` : '') +
@@ -260,7 +251,6 @@ async function buildCertificatePdf(cert: CertificateRow): Promise<Uint8Array> {
     }
     y -= 6;
 
-    // Labeled fields
     if (doctor?.speciality) {
       y = drawLabelValue(ctx, 'ESPECIALIDAD: ', doctor.speciality.toUpperCase(), margin, y);
       y -= 2;
@@ -283,7 +273,6 @@ async function buildCertificatePdf(cert: CertificateRow): Promise<Uint8Array> {
     }
     y -= 4;
 
-    // Diagnosis block
     page.drawText('DIAGNOSTICO:', { x: margin, y, font: fontBold, size: 10, color: dark });
     y -= 15;
     const diagText = c.diagnosis_code
@@ -300,21 +289,16 @@ async function buildCertificatePdf(cert: CertificateRow): Promise<Uint8Array> {
     }
     y -= 10;
 
-    // Rest period
     const daysNum = c.days ?? 1;
     const restLine = `Por lo que amerita reposo absoluto por ${daysNum} (${numToWords(daysNum)}) dia(s):`;
     page.drawText(restLine, { x: margin, y, font: fontReg, size: 10, color: dark });
     y -= 16;
 
     if (c.from_date) {
-      const desdeShort = formatDateShort(c.from_date);
-      const desdeWords = dateToWords(c.from_date);
-      y = drawLabelValue(ctx, 'DESDE: ', `${desdeShort} (${desdeWords}).`, margin, y);
+      y = drawLabelValue(ctx, 'DESDE: ', `${formatDateShort(c.from_date)} (${dateToWords(c.from_date)}).`, margin, y);
     }
     if (c.to_date) {
-      const hastaShort = formatDateShort(c.to_date);
-      const hastaWords = dateToWords(c.to_date);
-      y = drawLabelValue(ctx, 'HASTA: ', `${hastaShort} (${hastaWords}).`, margin, y);
+      y = drawLabelValue(ctx, 'HASTA: ', `${formatDateShort(c.to_date)} (${dateToWords(c.to_date)}).`, margin, y);
     }
 
     if (c.observations) {
@@ -332,12 +316,12 @@ async function buildCertificatePdf(cert: CertificateRow): Promise<Uint8Array> {
     const dateStr = formatDateShort(cert.issued_at.split('T')[0]!);
     const horaDesde = c.hora_desde ?? '';
     const horaHasta = c.hora_hasta ?? '';
-    const timeBlock = horaDesde ? ` ${dateStr} ${horaDesde} desde ${dateStr} ${horaDesde}${horaHasta ? ` hasta ${dateStr} ${horaHasta}` : ''}` : ` ${dateStr}`;
+    const timeBlock = horaDesde ? ` ${dateStr} desde las ${horaDesde}${horaHasta ? ` hasta las ${horaHasta}` : ''}` : ` ${dateStr}`;
 
     const procedimiento = c.procedimiento ?? 'CONSULTA MEDICA';
     const openPara = `Por la presente se certifica que el paciente ${patientLastFirst}` +
       (patient?.cedula ? ` con CI# ${patient.cedula}` : '') +
-      ` asistio al centro medico ${tenantName.toUpperCase()} el dia de hoy${timeBlock} para realizarse ${procedimiento.toUpperCase()}.`;
+      ` asistio al centro medico ${tenantName.toUpperCase()} el dia${timeBlock} para realizarse ${procedimiento.toUpperCase()}.`;
 
     const paraLines = wrapText(openPara, fontReg, 10, contentWidth);
     for (const line of paraLines) {
@@ -390,7 +374,6 @@ async function buildCertificatePdf(cert: CertificateRow): Promise<Uint8Array> {
     }
 
   } else {
-    // personalizado
     const c = cert.content as { body?: string };
     const lines = wrapText(c.body ?? '', fontReg, 10, contentWidth);
     for (const line of lines) {
@@ -404,30 +387,48 @@ async function buildCertificatePdf(cert: CertificateRow): Promise<Uint8Array> {
   page.drawText('El presente certificado se expide a peticion del interesado/a para los fines que estime conveniente.',
     { x: margin, y, font: fontReg, size: 8, color: gray });
 
-  // ── Signature block ────────────────────────────────────────────────────
-  const sigY = Math.min(y - 55, 160);
+  // ── Signature + QR block ───────────────────────────────────────────────
+  const sigY = Math.min(y - 55, 155);
+  const qrSize = 65;
 
-  // Signature line
+  // Signature line + doctor info (left side)
   page.drawLine({
     start: { x: margin, y: sigY + 30 },
-    end:   { x: margin + 180, y: sigY + 30 },
+    end:   { x: margin + 190, y: sigY + 30 },
     thickness: 0.5, color: dark,
   });
-
   page.drawText(doctorFullName, { x: margin, y: sigY + 16, font: fontBold, size: 9, color: dark });
   if (doctor?.speciality) {
     page.drawText(doctor.speciality.toUpperCase(), { x: margin, y: sigY + 4, font: fontReg, size: 8, color: gray });
   }
   page.drawText(tenantName.toUpperCase(), { x: margin, y: sigY - 8, font: fontReg, size: 8, color: gray });
   if (doctor?.senescyt_registration) {
-    page.drawText(`NUMERO DE REGISTRO: ${doctor.senescyt_registration}`, { x: margin, y: sigY - 20, font: fontReg, size: 8, color: gray });
+    page.drawText(`REG. SENESCYT: ${doctor.senescyt_registration}`, { x: margin, y: sigY - 20, font: fontReg, size: 8, color: gray });
   }
 
-  // Verification code (bottom right of signature area)
-  const verifyText = `Codigo de verificacion: ${cert.verification_code}`;
-  const vw = fontReg.widthOfTextAtSize(verifyText, 7);
-  page.drawText(verifyText, { x: width - margin - vw, y: sigY - 20, font: fontReg, size: 7, color: gray });
-  page.drawText('Firmado electronicamente', { x: width - margin - fontReg.widthOfTextAtSize('Firmado electronicamente', 8), y: sigY + 16, font: fontReg, size: 8, color: gray });
+  // QR code (right side of signature block)
+  try {
+    const rootDomain = process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'medicore.jovir.cloud';
+    const verificationUrl = `https://${rootDomain}/verificar/${cert.verification_code}`;
+    const qrBuffer = await QRCode.toBuffer(verificationUrl, { width: qrSize * 2, margin: 1, type: 'png' });
+    const qrImage = await pdfDoc.embedPng(qrBuffer);
+    const qrX = width - margin - qrSize;
+    const qrY = sigY - 20;
+    page.drawImage(qrImage, { x: qrX, y: qrY, width: qrSize, height: qrSize });
+    // Label below QR
+    const qrLabel = 'Verificar documento';
+    const qrLabelW = fontReg.widthOfTextAtSize(qrLabel, 6);
+    page.drawText(qrLabel, { x: qrX + (qrSize - qrLabelW) / 2, y: qrY - 8, font: fontReg, size: 6, color: gray });
+    // Verification code text
+    const codeText = cert.verification_code;
+    const codeW = fontBold.widthOfTextAtSize(codeText, 7);
+    page.drawText(codeText, { x: qrX + (qrSize - codeW) / 2, y: qrY - 16, font: fontBold, size: 7, color: dark });
+  } catch {
+    // QR generation failed — fallback to text
+    const verifyText = `Cod. verificacion: ${cert.verification_code}`;
+    const vw = fontReg.widthOfTextAtSize(verifyText, 7);
+    page.drawText(verifyText, { x: width - margin - vw, y: sigY - 20, font: fontReg, size: 7, color: gray });
+  }
 
   // ── Bottom blue bar ────────────────────────────────────────────────────
   page.drawRectangle({ x: 0, y: 0, width, height: 22, color: blue });
@@ -438,42 +439,30 @@ async function buildCertificatePdf(cert: CertificateRow): Promise<Uint8Array> {
 }
 
 // ---------------------------------------------------------------------------
-// Electronic signature (PKCS#7)
+// Electronic signature (proper embedded PDF PKCS#7)
 // ---------------------------------------------------------------------------
 
-async function signPdf(pdfBytes: Uint8Array, p12Buffer: Buffer, p12Password: string): Promise<Uint8Array> {
+async function signPdfEmbedded(
+  pdfBytes: Uint8Array,
+  p12Buffer: Buffer,
+  p12Password: string,
+  signerName: string,
+): Promise<{ signed: Uint8Array; success: boolean }> {
   try {
-    const p12Der  = forge.util.createBuffer(p12Buffer.toString('binary'));
-    const p12Asn1 = forge.asn1.fromDer(p12Der);
-    const p12     = forge.pkcs12.pkcs12FromAsn1(p12Asn1, p12Password);
-
-    const certBags = p12.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag] ?? [];
-    const keyBags  = p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag })[forge.pki.oids.pkcs8ShroudedKeyBag] ?? [];
-    if (!certBags[0]?.cert || !keyBags[0]?.key) return pdfBytes;
-
-    const p7 = forge.pkcs7.createSignedData();
-    p7.content = forge.util.createBuffer(Buffer.from(pdfBytes).toString('binary'));
-    p7.addCertificate(certBags[0].cert!);
-    p7.addSigner({
-      key: keyBags[0].key!,
-      certificate: certBags[0].cert!,
-      digestAlgorithm: forge.pki.oids.sha256,
-      authenticatedAttributes: [
-        { type: forge.pki.oids.contentType,  value: forge.pki.oids.data },
-        { type: forge.pki.oids.messageDigest },
-        { type: forge.pki.oids.signingTime,  value: new Date().toISOString() },
-      ],
+    const pdfWithPlaceholder = plainAddPlaceholder({
+      pdfBuffer: Buffer.from(pdfBytes),
+      reason: 'Certificado Medico Digital',
+      contactInfo: '',
+      name: signerName,
+      location: 'Ecuador',
     });
-    p7.sign({ detached: true });
 
-    const sigB64   = Buffer.from(forge.asn1.toDer(p7.toAsn1()).getBytes(), 'binary').toString('base64');
-    const comment  = new TextEncoder().encode(`\n%% PKCS7-SIGNATURE: ${sigB64}\n`);
-    const merged   = new Uint8Array(pdfBytes.length + comment.length);
-    merged.set(pdfBytes);
-    merged.set(comment, pdfBytes.length);
-    return merged;
+    const signer = new P12Signer(p12Buffer, { passphrase: p12Password });
+    const signpdf = new SignPdf();
+    const signedBuffer = await signpdf.sign(pdfWithPlaceholder, signer);
+    return { signed: new Uint8Array(signedBuffer), success: true };
   } catch {
-    return pdfBytes;
+    return { signed: pdfBytes, success: false };
   }
 }
 
@@ -507,6 +496,7 @@ export async function GET(
 
   const certRow = cert as unknown as CertificateRow;
   let pdfBytes = await buildCertificatePdf(certRow);
+  let wasSigned = false;
 
   // Try electronic signature
   const adminClient = createAdmin(
@@ -526,15 +516,23 @@ export async function GET(
       try {
         const p12Buf = Buffer.from(tenantFull.sri_cert_p12 as string, 'base64');
         const plainPassword = decryptPassword(tenantFull.sri_cert_password as string);
-        pdfBytes = await signPdf(pdfBytes, p12Buf, plainPassword);
+        const doctorName = certRow.doctor
+          ? `${certRow.doctor.first_name} ${certRow.doctor.last_name}`
+          : 'Medico';
+        const result = await signPdfEmbedded(pdfBytes, p12Buf, plainPassword, doctorName);
+        pdfBytes = result.signed;
+        wasSigned = result.success;
       } catch { /* unsigned */ }
     }
   }
 
-  await supabase
-    .from('medical_certificates')
-    .update({ is_signed: true, signed_at: new Date().toISOString() })
-    .eq('id', id);
+  // Only mark as signed if the signature was actually embedded
+  if (wasSigned) {
+    await supabase
+      .from('medical_certificates')
+      .update({ is_signed: true, signed_at: new Date().toISOString() })
+      .eq('id', id);
+  }
 
   return new Response(Buffer.from(pdfBytes), {
     headers: {
